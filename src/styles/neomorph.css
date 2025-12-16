@@ -1,0 +1,31 @@
+:root {
+    --bg: #EDF1F5;
+    --text: #334155;
+    --muted: #64748B;
+    --green: #22C55E;
+
+    --shadow-surface-1: 10px 10px 24px rgba(163, 177, 198, .60);
+    --shadow-surface-2: -10px -10px 24px rgba(255, 255, 255, .90);
+
+    --shadow-inset-1: inset 8px 8px 16px rgba(163, 177, 198, .55);
+    --shadow-inset-2: inset -8px -8px 16px rgba(255, 255, 255, .90);
+}
+
+.neo-surface {
+    background: var(--bg);
+    border-radius: 18px;
+    box-shadow: var(--shadow-surface-1), var(--shadow-surface-2);
+}
+
+.neo-inset {
+    background: var(--bg);
+    border-radius: 18px;
+    box-shadow: var(--shadow-inset-1), var(--shadow-inset-2);
+}
+
+.neo-pill {
+    background: var(--bg);
+    border-radius: 999px;
+    box-shadow: 8px 8px 16px rgba(163, 177, 198, .55),
+        -8px -8px 16px rgba(255, 255, 255, .90);
+}
