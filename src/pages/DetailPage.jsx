@@ -3,10 +3,28 @@ import { Link, useParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
 import SensorCard from "../components/SensorCard";
+
 import {
-    ResponsiveContainer, LineChart, Line,
-    XAxis, YAxis, CartesianGrid, Tooltip
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
 } from "recharts";
+
+import {
+    ChevronLeft,
+    Activity,
+    Thermometer,
+    Waves,
+    Grip,
+    Gauge,
+    StretchHorizontal,
+    Clock,
+    TriangleAlert,
+} from "lucide-react";
 
 const PART_LABEL = {
     "right-arm": "Tangan Kanan",
@@ -16,11 +34,11 @@ const PART_LABEL = {
 };
 
 const SENSORS = [
-    { key: "temp", label: "Temperature", unit: "°C" },
-    { key: "vib", label: "Vibration", unit: "A" },
-    { key: "fric", label: "Friction", unit: "arb" },
-    { key: "press", label: "Pressure", unit: "N" },
-    { key: "str", label: "Stretch", unit: "mm" },
+    { key: "temp", label: "Temperature", unit: "°C", Icon: Thermometer },
+    { key: "vib", label: "Vibration", unit: "A", Icon: Waves },
+    { key: "fric", label: "Friction", unit: "arb", Icon: Grip },
+    { key: "press", label: "Pressure", unit: "N", Icon: Gauge },
+    { key: "str", label: "Stretch", unit: "mm", Icon: StretchHorizontal },
 ];
 
 function makeDummySeries() {
@@ -46,26 +64,42 @@ export default function DetailPage() {
     const data = useMemo(() => makeDummySeries(), []);
     const current = data[data.length - 1];
 
-    const activeMeta = SENSORS.find(s => s.key === active);
+    const activeMeta = SENSORS.find((s) => s.key === active);
+    const ActiveIcon = activeMeta?.Icon ?? Activity;
 
     return (
         <div className="min-h-screen bg-[#e9eef3] p-4 sm:p-6">
-            <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
+            {/* Lebarkan layout supaya match dashboard */}
+            <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
                 {/* Top */}
                 <div className="neo-surface p-4 sm:p-5 flex items-center justify-between">
-                    <div>
-                        <div className="text-sm text-slate-500">
-                            <Link to="/dashboard" className="underline">Dashboard</Link> / {label}
+                    <div className="min-w-0">
+                        <div className="text-sm text-slate-500 flex items-center gap-2">
+                            <Link to="/dashboard" className="inline-flex items-center gap-2 hover:underline">
+                                <ChevronLeft size={16} />
+                                Dashboard
+                            </Link>
+                            <span className="text-slate-400">/</span>
+                            <span className="truncate">{label}</span>
                         </div>
-                        <div className="text-lg font-semibold text-slate-700 mt-1">{label} – Detail Sensor</div>
+
+                        <div className="text-xl font-semibold text-slate-800 mt-1">
+                            {label} – Detail Sensor
+                        </div>
+                        <div className="text-sm text-slate-500 mt-1">
+                            Pilih sensor untuk melihat tren 60 menit terakhir.
+                        </div>
                     </div>
+
                     <div className="flex items-center gap-3">
                         <NeoButton>Last 1h</NeoButton>
-                        <StatusBadge tone="ok">5/5 ACTIVE</StatusBadge>
+                        <StatusBadge tone="ok" className="text-sm px-3 py-1">
+                            5/5 ACTIVE
+                        </StatusBadge>
                     </div>
                 </div>
 
-                {/* KPI (Desktop: 5 kolom, Mobile: stack) */}
+                {/* KPI (5 kartu sensor) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     {SENSORS.map((s) => (
                         <SensorCard
@@ -76,21 +110,35 @@ export default function DetailPage() {
                             status="ok"
                             active={active === s.key}
                             onClick={() => setActive(s.key)}
+                            Icon={s.Icon}
                         />
+
                     ))}
                 </div>
 
                 {/* Chart */}
                 <div className="neo-surface p-4 sm:p-5">
                     <div className="flex items-center justify-between mb-3">
-                        <div className="font-semibold text-slate-700">
-                            Trend – {activeMeta?.label} ({activeMeta?.unit})
+                        <div className="flex items-center gap-3">
+                            <span className="neo-inset p-2 flex items-center justify-center">
+                                <ActiveIcon size={18} className="text-emerald-600" />
+                            </span>
+                            <div>
+                                <div className="font-semibold text-slate-800">
+                                    Trend – {activeMeta?.label} ({activeMeta?.unit})
+                                </div>
+                                <div className="text-xs text-slate-500">Window: 60 min</div>
+                            </div>
                         </div>
-                        <div className="text-xs text-slate-500">Window: 60 min</div>
+
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                            <Clock size={14} />
+                            Updated: just now
+                        </div>
                     </div>
 
                     <div className="neo-inset p-4">
-                        <div className="h-[320px]">
+                        <div className="h-[360px]">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={data}>
                                     <CartesianGrid strokeOpacity={0.15} />
@@ -114,15 +162,18 @@ export default function DetailPage() {
                             <div className="text-sm text-slate-700 mt-1">Just now</div>
                         </div>
                         <div className="neo-inset p-4">
-                            <div className="text-xs text-slate-500">Alert (1h)</div>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <TriangleAlert size={14} />
+                                Alert (1h)
+                            </div>
                             <div className="text-sm text-slate-700 mt-1">0</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Events: table desktop, list mobile */}
+                {/* Events */}
                 <div className="neo-surface p-4 sm:p-5">
-                    <div className="font-semibold text-slate-700 mb-3">Recent Events</div>
+                    <div className="font-semibold text-slate-800 mb-3">Recent Events</div>
 
                     {/* Desktop table */}
                     <div className="hidden sm:block neo-inset p-4 overflow-auto">
@@ -137,7 +188,10 @@ export default function DetailPage() {
                             </thead>
                             <tbody className="text-slate-700">
                                 <tr className="border-t border-white/60">
-                                    <td className="py-2">—</td><td className="py-2">—</td><td className="py-2">—</td><td className="py-2">—</td>
+                                    <td className="py-2">—</td>
+                                    <td className="py-2">—</td>
+                                    <td className="py-2">—</td>
+                                    <td className="py-2">—</td>
                                 </tr>
                             </tbody>
                         </table>

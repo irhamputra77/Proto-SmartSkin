@@ -12,20 +12,25 @@
 }
 
 .neo-surface {
-    background: var(--bg);
-    border-radius: 18px;
-    box-shadow: var(--shadow-surface-1), var(--shadow-surface-2);
+    border-radius: 24px;
+    background: linear-gradient(180deg, #f6f9fc 0%, #e9eff6 100%);
+    box-shadow:
+        14px 14px 30px rgba(148, 163, 184, 0.35),
+        -14px -14px 30px rgba(255, 255, 255, 0.9);
 }
 
 .neo-inset {
-    background: var(--bg);
     border-radius: 18px;
-    box-shadow: var(--shadow-inset-1), var(--shadow-inset-2);
+    background: linear-gradient(180deg, #eef4fa 0%, #f7fbff 100%);
+    box-shadow:
+        inset 10px 10px 18px rgba(148, 163, 184, 0.25),
+        inset -10px -10px 18px rgba(255, 255, 255, 0.95);
 }
 
 .neo-pill {
-    background: var(--bg);
     border-radius: 999px;
-    box-shadow: 8px 8px 16px rgba(163, 177, 198, .55),
-        -8px -8px 16px rgba(255, 255, 255, .90);
+    background: linear-gradient(180deg, #f6f9fc 0%, #e9eff6 100%);
+    box-shadow:
+        10px 10px 18px rgba(148, 163, 184, 0.28),
+        -10px -10px 18px rgba(255, 255, 255, 0.9);
 }
