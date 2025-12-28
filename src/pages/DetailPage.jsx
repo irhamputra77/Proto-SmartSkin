@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
-import SensorCard from "../components/SensorCard";
+import MannequinHotspotSVG from "../components/MannequinSVG";
 
 import {
     ResponsiveContainer,
@@ -14,64 +14,130 @@ import {
     Tooltip,
 } from "recharts";
 
-import {
-    ChevronLeft,
-    Activity,
-    Thermometer,
-    Waves,
-    Grip,
-    Gauge,
-    StretchHorizontal,
-    Clock,
-    TriangleAlert,
-} from "lucide-react";
+import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
+
+const SENSOR_META = {
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer },
+    vib: { label: "Vibration", unit: "A", Icon: Waves },
+    press: { label: "Pressure", unit: "N", Icon: Gauge },
+};
 
 const PART_LABEL = {
     "right-arm": "Tangan Kanan",
     "left-arm": "Tangan Kiri",
     "right-leg": "Kaki Kanan",
     "left-leg": "Kaki Kiri",
+    back: "Punggung",
 };
 
-const SENSORS = [
-    { key: "temp", label: "Temperature", unit: "°C", Icon: Thermometer },
-    { key: "vib", label: "Vibration", unit: "A", Icon: Waves },
-    { key: "fric", label: "Friction", unit: "arb", Icon: Grip },
-    { key: "press", label: "Pressure", unit: "N", Icon: Gauge },
-    { key: "str", label: "Stretch", unit: "mm", Icon: StretchHorizontal },
-];
+const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
-function makeDummySeries() {
+// dummy value saat ini untuk setiap lokasi (per sensor)
+function makeCurrentByPart() {
+    return {
+        "right-arm": { temp: 28.1, vib: 0.66, press: 41 },
+        "left-arm": { temp: 28.4, vib: 0.72, press: 44 },
+        "right-leg": { temp: 28.0, vib: 0.63, press: 46 },
+        "left-leg": { temp: 27.9, vib: 0.58, press: 49 },
+        back: { temp: 28.7, vib: 0.51, press: 38 },
+    };
+}
+
+// dummy time-series untuk chart (berdasarkan sensorKey + part)
+function makeSeries(sensorKey, part) {
     const now = Date.now();
     return Array.from({ length: 60 }).map((_, i) => {
         const t = new Date(now - (59 - i) * 60_000);
+
+        const partBias =
+            part === "back"
+                ? 0.35
+                : part === "left-arm"
+                    ? 0.2
+                    : part === "right-arm"
+                        ? -0.1
+                        : part === "left-leg"
+                            ? -0.25
+                            : 0.05;
+
+        let val = 0;
+        if (sensorKey === "temp") val = 28 + Math.sin(i / 6) * 1.2 + partBias;
+        if (sensorKey === "vib") val = 0.45 + Math.abs(Math.cos(i / 8)) * 0.8 + partBias * 0.1;
+        if (sensorKey === "press") val = 40 + Math.sin(i / 5) * 10 + partBias * 10;
+
         return {
             time: t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            temp: 28 + Math.sin(i / 6) * 1.2,
-            vib: 0.4 + Math.abs(Math.cos(i / 8)) * 0.8,
-            fric: 12 + Math.sin(i / 10) * 2.5,
-            press: 40 + Math.sin(i / 5) * 10,
-            str: 2 + Math.sin(i / 7) * 0.6,
+            v: val,
         };
     });
 }
 
+function fmt(v) {
+    if (typeof v !== "number") return "0";
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+}
+
+function LocationPill({ label, value, unit, active, onClick }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={active}
+            className={[
+                "w-full text-left rounded-2xl transition select-none",
+                // base neomorphism
+                active
+                    ? "neo-inset" // <- pressed look
+                    : "neo-surface hover:scale-[1.01]",
+                // spacing
+                "p-4",
+                // focus ring
+                active ? "ring-2 ring-emerald-400/60" : "focus:ring-2 focus:ring-emerald-300/50",
+                // pressed interaction feel
+                "active:translate-y-[1px] active:scale-[0.99]",
+                // make selected slightly lowered (clicked state)
+                active ? "translate-y-[1px]" : "",
+            ].join(" ")}
+        >
+            <div className="flex items-center justify-between gap-2">
+                <div className="font-semibold text-slate-900">{label}</div>
+                <StatusBadge tone="ok" className="text-xs px-3 py-1">
+                    OK
+                </StatusBadge>
+            </div>
+
+            <div className="mt-2 flex items-end justify-between">
+                <div className="text-2xl font-semibold text-slate-900">{fmt(value)}</div>
+                <div className="text-sm font-medium text-slate-500">{unit}</div>
+            </div>
+
+            <div className="mt-1 text-xs text-slate-500">
+                {active ? "Selected" : "Tap to focus"}
+            </div>
+        </button>
+    );
+}
+
+
 export default function DetailPage() {
-    const { part } = useParams();
-    const label = PART_LABEL[part] ?? part;
+    const { sensorKey } = useParams(); // temp|vib|press
+    const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
+    const { Icon } = meta;
 
-    const [active, setActive] = useState("press");
-    const data = useMemo(() => makeDummySeries(), []);
-    const current = data[data.length - 1];
+    const [activePart, setActivePart] = useState("back"); // default fokus punggung (boleh ubah)
+    const currentByPart = useMemo(() => makeCurrentByPart(), []);
+    const series = useMemo(() => makeSeries(sensorKey, activePart), [sensorKey, activePart]);
 
-    const activeMeta = SENSORS.find((s) => s.key === active);
-    const ActiveIcon = activeMeta?.Icon ?? Activity;
+    const currentValue = currentByPart[activePart]?.[sensorKey] ?? 0;
+
+    // optional hover (kalau mau tooltip nanti)
+    const handleHoverPart = () => { };
+    const handleLeavePart = () => { };
 
     return (
-        <div className="min-h-screen bg-[#e9eef3] p-4 sm:p-6">
-            {/* Lebarkan layout supaya match dashboard */}
-            <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
-                {/* Top */}
+        <div className="h-screen bg-[#e9eef3] p-4 sm:p-6 overflow-hidden">
+            <div className="max-w-[1400px] mx-auto h-full flex flex-col gap-4 sm:gap-6">
+                {/* HEADER */}
                 <div className="neo-surface p-4 sm:p-5 flex items-center justify-between">
                     <div className="min-w-0">
                         <div className="text-sm text-slate-500 flex items-center gap-2">
@@ -80,126 +146,96 @@ export default function DetailPage() {
                                 Dashboard
                             </Link>
                             <span className="text-slate-400">/</span>
-                            <span className="truncate">{label}</span>
+                            <span className="truncate">{meta.label}</span>
                         </div>
 
-                        <div className="text-xl font-semibold text-slate-800 mt-1">
-                            {label} – Detail Sensor
+                        <div className="text-xl font-semibold text-slate-800 mt-1 flex items-center gap-2">
+                            <span className="neo-inset p-2 inline-flex items-center justify-center">
+                                <Icon size={18} className="text-emerald-600" />
+                            </span>
+                            {meta.label} – Location Detail
                         </div>
+
                         <div className="text-sm text-slate-500 mt-1">
-                            Pilih sensor untuk melihat tren 60 menit terakhir.
+                            Klik mannequin / kartu lokasi untuk fokus grafik (1 sensor).
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <NeoButton>Last 1h</NeoButton>
-                        <StatusBadge tone="ok" className="text-sm px-3 py-1">
-                            5/5 ACTIVE
-                        </StatusBadge>
+                        <StatusBadge tone="ok">5/5 ACTIVE</StatusBadge>
                     </div>
                 </div>
 
-                {/* KPI (5 kartu sensor) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {SENSORS.map((s) => (
-                        <SensorCard
-                            key={s.key}
-                            label={s.label}
-                            unit={s.unit}
-                            value={Number(current?.[s.key] ?? 0).toFixed(2)}
-                            status="ok"
-                            active={active === s.key}
-                            onClick={() => setActive(s.key)}
-                            Icon={s.Icon}
-                        />
+                {/* MAIN AREA */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 flex-1 min-h-0">
+                    {/* LEFT: mannequin */}
+                    <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
+                        <div className="neo-inset p-3 flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+                            {/* BOX aspect sesuai gambar (2:3) */}
+                            <div className="relative h-full max-h-full aspect-[2/3]">
+                                <MannequinHotspotSVG
+                                    className="absolute inset-0 w-full h-full"
+                                    activePart={activePart}
+                                    onClickPart={setActivePart}
+                                    onHoverPart={handleHoverPart}
+                                    onLeavePart={handleLeavePart}
+                                />
 
-                    ))}
-                </div>
-
-                {/* Chart */}
-                <div className="neo-surface p-4 sm:p-5">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <span className="neo-inset p-2 flex items-center justify-center">
-                                <ActiveIcon size={18} className="text-emerald-600" />
-                            </span>
-                            <div>
-                                <div className="font-semibold text-slate-800">
-                                    Trend – {activeMeta?.label} ({activeMeta?.unit})
-                                </div>
-                                <div className="text-xs text-slate-500">Window: 60 min</div>
                             </div>
                         </div>
 
-                        <div className="text-xs text-slate-500 flex items-center gap-2">
-                            <Clock size={14} />
-                            Updated: just now
+                        <div className="mt-4 flex items-center justify-between">
+                            <div className="text-sm text-slate-600 flex items-center gap-2">
+                                <MapPin size={16} className="text-emerald-600" />
+                                Focus:{" "}
+                                <span className="font-semibold text-slate-900">{PART_LABEL[activePart]}</span>
+                            </div>
+                            <div className="text-sm text-slate-600">
+                                Current:{" "}
+                                <span className="font-semibold text-slate-900">{fmt(currentValue)}</span>{" "}
+                                <span className="text-slate-500">{meta.unit}</span>
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <div className="neo-inset p-4">
-                        <div className="h-[360px]">
+                    {/* RIGHT: chart */}
+                    <section className="lg:col-span-8 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="font-semibold text-slate-800">
+                                Trend – {meta.label} ({meta.unit})
+                            </div>
+                            <div className="text-xs text-slate-500">Window: 60 min</div>
+                        </div>
+
+                        <div className="neo-inset p-4 flex-1 min-h-0">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={data}>
+                                <LineChart data={series}>
                                     <CartesianGrid strokeOpacity={0.15} />
                                     <XAxis dataKey="time" tick={{ fontSize: 12 }} />
                                     <YAxis tick={{ fontSize: 12 }} />
                                     <Tooltip />
-                                    <Line type="monotone" dataKey={active} strokeWidth={2} dot={false} />
+                                    <Line type="monotone" dataKey="v" strokeWidth={2} dot={false} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="neo-inset p-4">
-                            <div className="text-xs text-slate-500">Min / Avg / Max</div>
-                            <div className="text-sm text-slate-700 mt-1">— / — / —</div>
-                        </div>
-                        <div className="neo-inset p-4">
-                            <div className="text-xs text-slate-500">Last Update</div>
-                            <div className="text-sm text-slate-700 mt-1">Just now</div>
-                        </div>
-                        <div className="neo-inset p-4">
-                            <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <TriangleAlert size={14} />
-                                Alert (1h)
-                            </div>
-                            <div className="text-sm text-slate-700 mt-1">0</div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
 
-                {/* Events */}
-                <div className="neo-surface p-4 sm:p-5">
-                    <div className="font-semibold text-slate-800 mb-3">Recent Events</div>
-
-                    {/* Desktop table */}
-                    <div className="hidden sm:block neo-inset p-4 overflow-auto">
-                        <table className="w-full text-sm">
-                            <thead className="text-slate-500">
-                                <tr>
-                                    <th className="text-left py-2">Time</th>
-                                    <th className="text-left py-2">Sensor</th>
-                                    <th className="text-left py-2">Value</th>
-                                    <th className="text-left py-2">Severity</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-slate-700">
-                                <tr className="border-t border-white/60">
-                                    <td className="py-2">—</td>
-                                    <td className="py-2">—</td>
-                                    <td className="py-2">—</td>
-                                    <td className="py-2">—</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Mobile list */}
-                    <div className="sm:hidden space-y-3">
-                        <div className="neo-inset p-4 text-sm text-slate-500">Belum ada event</div>
+                {/* LOCATION BAR (horizontal scroll, aman buat 5 lokasi) */}
+                <div className="neo-surface p-3 sm:p-4">
+                    <div className="flex gap-4 overflow-x-auto pb-2">
+                        {PARTS.map((id) => (
+                            <div key={id} className="min-w-[260px] sm:min-w-[280px]">
+                                <LocationPill
+                                    label={PART_LABEL[id]}
+                                    value={currentByPart[id]?.[sensorKey]}
+                                    unit={meta.unit}
+                                    active={activePart === id}
+                                    onClick={() => setActivePart(id)}
+                                />
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
