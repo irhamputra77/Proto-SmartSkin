@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
-import SensorCard from "../components/SensorCard";
+import MannequinHotspotSVG from "../components/MannequinSVG";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,380 +12,293 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import {
-  ChevronLeft,
-  Activity,
-  Thermometer,
-  Waves,
-  Grip,
-  Gauge,
-  StretchHorizontal,
-  Clock,
-  TriangleAlert,
-} from "lucide-react";
+import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
-// 🔁 MAP UI route ke nama lokasi di backend (exact match!)
-const UI_PART_TO_BACKEND_LOCATION = {
-  "left-arm": "left arm",
-  "right-arm": "right arm",
-  "left-leg": "left leg",
-  "right-leg": "right leg",
-  back: "back",
+const SENSOR_META = {
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity" },
+    vib: { label: "Vibration", unit: "A", Icon: Waves, backendType: "vibration" },
+    press: { label: "Pressure", unit: "N", Icon: Gauge, backendType: "pressure" },
 };
 
 const PART_LABEL = {
-  "right-arm": "Lengan Kanan",
-  "left-arm": "Lengan Kiri",
-  "right-leg": "Kaki Kanan",
-  "left-leg": "Kaki Kiri",
-  back: "Punggung",
+    "right-arm": "Tangan Kanan",
+    "left-arm": "Tangan Kiri",
+    "right-leg": "Kaki Kanan",
+    "left-leg": "Kaki Kiri",
+    back: "Punggung",
 };
 
-const SENSORS = [
-  { key: "temp", label: "Temperature", unit: "°C", Icon: Thermometer },
-  { key: "vib", label: "Vibration", unit: "g", Icon: Waves },
-  { key: "fric", label: "Friction", unit: "N", Icon: Grip },
-  { key: "press", label: "Pressure", unit: "kPa", Icon: Gauge },
-  { key: "str", label: "Stretch", unit: "mm", Icon: StretchHorizontal },
-];
+const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
-// 🔁 Mapping nama sensor_type.name (dari backend) ke key frontend
-const SENSOR_TYPE_NAME_TO_KEY = {
-  friction: "fric",
-  vibration: "vib",
-  humidity: "temp", // asumsi: humidity = MCP9808 = suhu
-  pressure: "press",
-  stretch: "str",
+// Mapping backend ke frontend
+const LOCATION_MAP_BACKEND = {
+    "right arm": "right-leg",
+    "left arm": "left-leg",
+    "right leg": "right-leg",
+    "left leg": "left-leg",
+    "back": "back",
 };
-
-// ✅ Daftar semua key sensor untuk inisialisasi
-const ALL_SENSOR_KEYS = SENSORS.map((s) => s.key);
 
 export default function DetailPage() {
-  const { part } = useParams();
-  const label = PART_LABEL[part] ?? part;
-  const backendLocationName = UI_PART_TO_BACKEND_LOCATION[part];
+    const { sensorKey } = useParams();
+    const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
+    const { Icon } = meta;
 
-  const [active, setActive] = useState("press");
-  const [timeSeriesData, setTimeSeriesData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [sensorMetadata, setSensorMetadata] = useState({});
+    const [activePart, setActivePart] = useState("back");
+    const [sensorData, setSensorData] = useState({});
+    const [loading, setLoading] = useState(true);
 
-  // Fetch metadata sensor
-  useEffect(() => {
-    const API_BASE =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+    useEffect(() => {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        
+        const fetchData = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/sensor-reading`);
+                if (!res.ok) throw new Error('Gagal ambil data');
+                const readings = await res.json();
 
-    const fetchSensorMeta = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/sensor`);
-        if (!res.ok) throw new Error("Gagal ambil metadata sensor");
-        const sensors = await res.json();
+                // Kelompokkan data per lokasi dan nomor sensor
+                const data = {};
+                PARTS.forEach(part => {
+                    data[part] = {
+                        sensor1: [],
+                        sensor2: [],
+                        current: { sensor1: 0, sensor2: 0 }
+                    };
+                });
 
-        const meta = {};
-        for (const sensor of sensors) {
-          const key = SENSOR_TYPE_NAME_TO_KEY[sensor.sensorType?.name];
-          if (key && sensor.location?.name) {
-            meta[sensor.id] = {
-              typeKey: key,
-              locationName: sensor.location.name,
-            };
-          }
-        }
-        setSensorMetadata(meta);
-      } catch (err) {
-        console.error("Error fetching sensor metadata:", err);
-        setError("Gagal muat metadata sensor");
-      }
-    };
+                readings.forEach(r => {
+                    const backendLoc = r.sensor.location.name;
+                    const frontendLoc = LOCATION_MAP_BACKEND[backendLoc];
+                    const backendType = r.sensor.sensorType.name;
+                    const frontendType = Object.keys(SENSOR_META).find(key => 
+                        SENSOR_META[key].backendType === backendType
+                    );
+                    
+                    if (frontendLoc && frontendType === sensorKey && r.value != null) {
+                        const sensorNum = r.sensor.externalId; // 1 atau 2
+                        const value = parseFloat(r.value);
+                        
+                        if (sensorNum === 1) {
+                            data[frontendLoc].sensor1.push({
+                                time: new Date(r.timestamp).toLocaleTimeString([], { 
+                                    hour: "2-digit", 
+                                    minute: "2-digit" 
+                                }),
+                                v: value
+                            });
+                            data[frontendLoc].current.sensor1 = value;
+                        } else if (sensorNum === 2) {
+                            data[frontendLoc].sensor2.push({
+                                time: new Date(r.timestamp).toLocaleTimeString([], { 
+                                    hour: "2-digit", 
+                                    minute: "2-digit" 
+                                }),
+                                v: value
+                            });
+                            data[frontendLoc].current.sensor2 = value;
+                        }
+                    }
+                });
 
-    if (part) fetchSensorMeta();
-  }, [part]);
+                setSensorData(data);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching ", err);
+                setLoading(false);
+            }
+        };
 
-  // Fetch readings
-  useEffect(() => {
-    const API_BASE =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        fetchData();
+        const interval = setInterval(fetchData, 3000);
+        return () => clearInterval(interval);
+    }, [sensorKey]);
 
-    if (
-      !part ||
-      !backendLocationName ||
-      Object.keys(sensorMetadata).length === 0
-    )
-      return;
+    const currentData = sensorData[activePart] || { current: { sensor1: 0, sensor2: 0 } };
+    const series1 = sensorData[activePart]?.sensor1 || [];
+    const series2 = sensorData[activePart]?.sensor2 || [];
 
-    const fetchReadings = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE}/sensor-reading`);
-        if (!res.ok) throw new Error("Gagal ambil data sensor");
-        const readings = await res.json();
-        const relevantReadings = readings.filter((r) => {
-          const meta = sensorMetadata[r.sensor?.id];
-          return meta && meta.locationName === backendLocationName;
-        });
+    function fmt(v) {
+        if (typeof v !== "number") return "0";
+        return Number.isInteger(v) ? String(v) : v.toFixed(2);
+    }
 
-        const dataPoints = relevantReadings
-          .map((r) => {
-            const meta = sensorMetadata[r.sensor?.id];
-            if (!meta || r.value == null) return null;
-
-            const date = new Date(r.timestamp);
-            return {
-              time: date.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit", // Tambahkan detik untuk unik
-                hour12: false,
-              }),
-              timestamp: date.getTime(),
-              typeKey: meta.typeKey,
-              value: parseFloat(r.value),
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => a.timestamp - b.timestamp)
-          .slice(-50);
-
-        // ✅ Inisialisasi semua kolom sensor di setiap titik waktu
-        const timeGroups = {};
-        for (const point of dataPoints) {
-          if (!timeGroups[point.timestamp]) {
-            const initialData = { time: point.time };
-            ALL_SENSOR_KEYS.forEach((key) => {
-              initialData[key] = null;
-            });
-            timeGroups[point.timestamp] = initialData;
-          }
-          timeGroups[point.timestamp][point.typeKey] = point.value;
-        }
-
-        const series = Object.values(timeGroups);
-        setTimeSeriesData(series);
-        setLastUpdate(new Date().toLocaleTimeString());
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching readings:", err);
-        setError(err.message || "Gagal ambil data sensor");
-        setTimeSeriesData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchReadings();
-    const interval = setInterval(fetchReadings, 3000);
-    return () => clearInterval(interval);
-  }, [part, backendLocationName, sensorMetadata]);
-
-  const current = useMemo(() => {
-    if (timeSeriesData.length === 0) return null;
-    return timeSeriesData[timeSeriesData.length - 1];
-  }, [timeSeriesData]);
-
-  const activeMeta = SENSORS.find((s) => s.key === active);
-  const ActiveIcon = activeMeta?.Icon ?? Activity;
-
-  if (loading && timeSeriesData.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#e9eef3] p-6 flex items-center justify-center">
-        <div className="text-lg">Mengambil data sensor {label}...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#e9eef3] p-6 flex flex-col items-center justify-center text-red-600">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md text-center">
-          <h2 className="text-xl font-bold mb-2">Gagal Memuat Data Sensor</h2>
-          <p className="mb-4">{error}</p>
-          <p className="text-sm text-slate-500 mb-4">
-            Pastikan backend memiliki endpoint:
-            <br />
-            <code className="bg-slate-200 px-2 py-1 rounded">
-              /sensor-readings
-            </code>
-            <br />
-            dan
-            <br />
-            <code className="bg-slate-200 px-2 py-1 rounded">/sensor</code>
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="neo-button mt-4"
-          >
-            Muat Ulang Halaman
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#e9eef3] p-4 sm:p-6">
-      <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
-        <div className="neo-surface p-4 sm:p-5 flex items-center justify-between">
-          <div className="min-w-0">
-            <div className="text-sm text-slate-500 flex items-center gap-2">
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 hover:underline"
-              >
-                <ChevronLeft size={16} />
-                Dashboard
-              </Link>
-              <span className="text-slate-400">/</span>
-              <span className="truncate">{label}</span>
-            </div>
-            <div className="text-xl font-semibold text-slate-800 mt-1">
-              {label} – Detail Sensor
-            </div>
-            <div className="text-sm text-slate-500 mt-1">
-              Pilih sensor untuk melihat tren terbaru.
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <NeoButton>Last 1h</NeoButton>
-            <StatusBadge
-              tone={error ? "danger" : "ok"}
-              className="text-sm px-3 py-1"
+    function LocationPill({ label, value1, value2, unit, active, onClick }) {
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                aria-pressed={active}
+                className={[
+                    "w-full text-left rounded-2xl transition select-none",
+                    active
+                        ? "neo-inset"
+                        : "neo-surface hover:scale-[1.01]",
+                    "p-4",
+                    active ? "ring-2 ring-emerald-400/60" : "focus:ring-2 focus:ring-emerald-300/50",
+                    "active:translate-y-[1px] active:scale-[0.99]",
+                    active ? "translate-y-[1px]" : "",
+                ].join(" ")}
             >
-              {error ? "ERROR" : "5/5 ACTIVE"}
-            </StatusBadge>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {SENSORS.map((s) => (
-            <SensorCard
-              key={s.key}
-              label={s.label}
-              unit={s.unit}
-              value={current ? Number(current[s.key] ?? 0).toFixed(2) : "--"}
-              status={error ? "danger" : "ok"}
-              active={active === s.key}
-              onClick={() => setActive(s.key)}
-              Icon={s.Icon}
-            />
-          ))}
-        </div>
-
-        <div className="neo-surface p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <span className="neo-inset p-2 flex items-center justify-center">
-                <ActiveIcon size={18} className="text-emerald-600" />
-              </span>
-              <div>
-                <div className="font-semibold text-slate-800">
-                  Trend – {activeMeta?.label} ({activeMeta?.unit})
+                <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold text-slate-900">{label}</div>
+                    <StatusBadge tone="ok" className="text-xs px-3 py-1">
+                        OK
+                    </StatusBadge>
                 </div>
-                <div className="text-xs text-slate-500">Real-time data</div>
-              </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                        <div className="text-xs text-slate-500">Sensor 1</div>
+                        <div className="text-lg font-semibold text-slate-900">{fmt(value1)}</div>
+                    </div>
+                    <div>
+                        <div className="text-xs text-slate-500">Sensor 2</div>
+                        <div className="text-lg font-semibold text-slate-900">{fmt(value2)}</div>
+                    </div>
+                </div>
+
+                <div className="mt-1 text-xs text-slate-500">
+                    {active ? "Selected" : "Tap to focus"}
+                </div>
+            </button>
+        );
+    }
+
+    return (
+        <div className="h-screen bg-[#e9eef3] p-4 sm:p-6 overflow-hidden">
+            <div className="max-w-[1400px] mx-auto h-full flex flex-col gap-4 sm:gap-6">
+                {/* HEADER */}
+                <div className="neo-surface p-4 sm:p-5 flex items-center justify-between">
+                    <div className="min-w-0">
+                        <div className="text-sm text-slate-500 flex items-center gap-2">
+                            <Link to="/dashboard" className="inline-flex items-center gap-2 hover:underline">
+                                <ChevronLeft size={16} />
+                                Dashboard
+                            </Link>
+                            <span className="text-slate-400">/</span>
+                            <span className="truncate">{meta.label}</span>
+                        </div>
+
+                        <div className="text-xl font-semibold text-slate-800 mt-1 flex items-center gap-2">
+                            <span className="neo-inset p-2 inline-flex items-center justify-center">
+                                <Icon size={18} className="text-emerald-600" />
+                            </span>
+                            {meta.label} – Location Detail
+                        </div>
+
+                        <div className="text-sm text-slate-500 mt-1">
+                            Klik mannequin / kartu lokasi untuk fokus grafik (2 sensor per lokasi).
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <NeoButton>Last 1h</NeoButton>
+                        <StatusBadge tone="ok">5/5 ACTIVE</StatusBadge>
+                    </div>
+                </div>
+
+                {/* MAIN AREA */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 flex-1 min-h-0">
+                    {/* LEFT: mannequin */}
+                    <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
+                        <div className="neo-inset p-3 flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+                            <div className="relative h-full max-h-full aspect-[2/3]">
+                                <MannequinHotspotSVG
+                                    className="absolute inset-0 w-full h-full"
+                                    activePart={activePart}
+                                    onClickPart={setActivePart}
+                                    onHoverPart={() => {}}
+                                    onLeavePart={() => {}}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between">
+                            <div className="text-sm text-slate-600 flex items-center gap-2">
+                                <MapPin size={16} className="text-emerald-600" />
+                                Focus:{" "}
+                                <span className="font-semibold text-slate-900">{PART_LABEL[activePart]}</span>
+                            </div>
+                            <div className="text-sm text-slate-600">
+                                S1: {fmt(currentData.current.sensor1)} {meta.unit} | 
+                                S2: {fmt(currentData.current.sensor2)} {meta.unit}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* RIGHT: charts (2 charts) */}
+                    <section className="lg:col-span-8 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
+                            {/* Chart Sensor 1 */}
+                            <div className="neo-inset p-4 flex flex-col min-h-0">
+                                <div className="font-semibold text-slate-800 mb-2">
+                                    Sensor 1 – {meta.label} ({meta.unit})
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={series1}>
+                                            <CartesianGrid strokeOpacity={0.15} />
+                                            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+                                            <YAxis tick={{ fontSize: 10 }} />
+                                            <Tooltip />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey="v" 
+                                                strokeWidth={2} 
+                                                stroke="#10b981"
+                                                dot={false} 
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Chart Sensor 2 */}
+                            <div className="neo-inset p-4 flex flex-col min-h-0">
+                                <div className="font-semibold text-slate-800 mb-2">
+                                    Sensor 2 – {meta.label} ({meta.unit})
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={series2}>
+                                            <CartesianGrid strokeOpacity={0.15} />
+                                            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+                                            <YAxis tick={{ fontSize: 10 }} />
+                                            <Tooltip />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey="v" 
+                                                strokeWidth={2} 
+                                                stroke="#3b82f6"
+                                                dot={false} 
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                {/* LOCATION BAR */}
+                <div className="neo-surface p-3 sm:p-4">
+                    <div className="flex gap-4 overflow-x-auto pb-2">
+                        {PARTS.map((id) => (
+                            <div key={id} className="min-w-[260px] sm:min-w-[280px]">
+                                <LocationPill
+                                    label={PART_LABEL[id]}
+                                    value1={sensorData[id]?.current?.sensor1 || 0}
+                                    value2={sensorData[id]?.current?.sensor2 || 0}
+                                    unit={meta.unit}
+                                    active={activePart === id}
+                                    onClick={() => setActivePart(id)}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
-            <div className="text-xs text-slate-500 flex items-center gap-2">
-              <Clock size={14} />
-              Updated: {lastUpdate || "—"}
-            </div>
-          </div>
-
-          <div className="neo-inset p-4">
-            <div className="h-[360px]">
-              {timeSeriesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid strokeOpacity={0.15} />
-                    <XAxis
-                      dataKey="time"
-                      tick={{ fontSize: 10 }}
-                      interval="preserveEnd"
-                      minTickGap={50}
-                    />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip
-                      formatter={(value) => [Number(value).toFixed(2), "Value"]}
-                      labelFormatter={(label) => `Time: ${label}`}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey={active}
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 6, stroke: "#059669", strokeWidth: 2 }}
-                      connectNulls={true}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-500">
-                  Tidak ada data untuk {label}.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-            {current ? (
-              <>
-                <div className="neo-inset p-4">
-                  <div className="text-xs text-slate-500">Min / Avg / Max</div>
-                  <div className="text-sm text-slate-700 mt-1">— / — / —</div>
-                </div>
-                <div className="neo-inset p-4">
-                  <div className="text-xs text-slate-500">Last Update</div>
-                  <div className="text-sm text-slate-700 mt-1">
-                    {lastUpdate || "Just now"}
-                  </div>
-                </div>
-                <div className="neo-inset p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <TriangleAlert size={14} />
-                    Alert (1h)
-                  </div>
-                  <div className="text-sm text-slate-700 mt-1">0</div>
-                </div>
-              </>
-            ) : (
-              <div className="md:col-span-3 text-center text-slate-500 py-4">
-                Tidak ada data untuk ditampilkan.
-              </div>
-            )}
-          </div>
         </div>
-
-        <div className="neo-surface p-4 sm:p-5">
-          <div className="font-semibold text-slate-800 mb-3">Recent Events</div>
-          <div className="hidden sm:block neo-inset p-4 overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="text-left py-2">Time</th>
-                  <th className="text-left py-2">Sensor</th>
-                  <th className="text-left py-2">Value</th>
-                  <th className="text-left py-2">Severity</th>
-                </tr>
-              </thead>
-              <tbody className="text-slate-700">
-                <tr className="border-t border-white/60">
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2">—</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="sm:hidden space-y-3">
-            <div className="neo-inset p-4 text-sm text-slate-500">
-              Belum ada event
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
