@@ -63,7 +63,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        
+
         const fetchData = async () => {
             try {
                 const res = await fetch(`${API_BASE}/sensor-reading`);
@@ -79,10 +79,10 @@ export default function DashboardPage() {
 
                 readings.forEach(r => {
                     const backendType = r.sensor.sensorType.name;
-                    const sensorKey = Object.keys(SENSOR_TYPES).find(key => 
+                    const sensorKey = Object.keys(SENSOR_TYPES).find(key =>
                         SENSOR_TYPES[key].backendType === backendType
                     );
-                    
+
                     if (sensorKey && r.value != null) {
                         sensorData[sensorKey].push(parseFloat(r.value));
                     }
@@ -111,12 +111,12 @@ export default function DashboardPage() {
                     timeSeries[key] = Array.from({ length: 60 }).map((_, i) => {
                         const t = new Date(now - (59 - i) * 60_000);
                         // Ambil nilai rata-rata dari data real, atau dummy jika tidak ada
-                        const avgVal = sensorData[key].length > 0 
-                            ? sensorData[key][i % sensorData[key].length] 
+                        const avgVal = sensorData[key].length > 0
+                            ? sensorData[key][i % sensorData[key].length]
                             : key === "temp" ? 28 + Math.sin(i / 6) * 1.1 :
-                              key === "vib" ? 0.45 + Math.abs(Math.cos(i / 8)) * 0.75 :
-                              40 + Math.sin(i / 5) * 9;
-                        
+                                key === "vib" ? 0.45 + Math.abs(Math.cos(i / 8)) * 0.75 :
+                                    40 + Math.sin(i / 5) * 9;
+
                         return {
                             time: t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
                             v: avgVal
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* body */}
-                <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="neo-inset p-3 rounded-2xl">
                         <div className="text-xs text-slate-500">Min</div>
                         <div className="mt-1 text-lg font-semibold text-slate-900">
@@ -263,8 +263,8 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#e9eef3] p-4 sm:p-6">
-            <div className="w-full mx-auto space-y-4 sm:space-y-6">
+        <div className="min-h-[100dvh] bg-[#e9eef3] p-3 sm:p-6">
+            <div className="w-full max-w-[1200px] mx-auto space-y-4 sm:space-y-6">
                 {/* HEADER */}
                 <div className="neo-surface p-4 sm:p-6 rounded-2xl">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

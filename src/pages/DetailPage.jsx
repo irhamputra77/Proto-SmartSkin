@@ -4,13 +4,13 @@ import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
 import MannequinHotspotSVG from "../components/MannequinSVG";
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
 } from "recharts";
 import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
@@ -50,7 +50,7 @@ export default function DetailPage() {
 
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-        
+
         const fetchData = async () => {
             try {
                 const res = await fetch(`${API_BASE}/sensor-reading`);
@@ -71,28 +71,28 @@ export default function DetailPage() {
                     const backendLoc = r.sensor.location.name;
                     const frontendLoc = LOCATION_MAP_BACKEND[backendLoc];
                     const backendType = r.sensor.sensorType.name;
-                    const frontendType = Object.keys(SENSOR_META).find(key => 
+                    const frontendType = Object.keys(SENSOR_META).find(key =>
                         SENSOR_META[key].backendType === backendType
                     );
-                    
+
                     if (frontendLoc && frontendType === sensorKey && r.value != null) {
                         const sensorNum = r.sensor.externalId; // 1 atau 2
                         const value = parseFloat(r.value);
-                        
+
                         if (sensorNum === 1) {
                             data[frontendLoc].sensor1.push({
-                                time: new Date(r.timestamp).toLocaleTimeString([], { 
-                                    hour: "2-digit", 
-                                    minute: "2-digit" 
+                                time: new Date(r.timestamp).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit"
                                 }),
                                 v: value
                             });
                             data[frontendLoc].current.sensor1 = value;
                         } else if (sensorNum === 2) {
                             data[frontendLoc].sensor2.push({
-                                time: new Date(r.timestamp).toLocaleTimeString([], { 
-                                    hour: "2-digit", 
-                                    minute: "2-digit" 
+                                time: new Date(r.timestamp).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit"
                                 }),
                                 v: value
                             });
@@ -166,10 +166,10 @@ export default function DetailPage() {
     }
 
     return (
-        <div className="h-screen bg-[#e9eef3] p-4 sm:p-6 overflow-hidden">
-            <div className="max-w-[1400px] mx-auto h-full flex flex-col gap-4 sm:gap-6">
+        <div className="min-h-[100dvh] bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
+            <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4 sm:gap-6 min-h-[100dvh]">
                 {/* HEADER */}
-                <div className="neo-surface p-4 sm:p-5 flex items-center justify-between">
+                <div className="neo-surface p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
                         <div className="text-sm text-slate-500 flex items-center gap-2">
                             <Link to="/dashboard" className="inline-flex items-center gap-2 hover:underline">
@@ -186,13 +186,9 @@ export default function DetailPage() {
                             </span>
                             {meta.label} – Location Detail
                         </div>
-
-                        <div className="text-sm text-slate-500 mt-1">
-                            Klik mannequin / kartu lokasi untuk fokus grafik (2 sensor per lokasi).
-                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                         <NeoButton>Last 1h</NeoButton>
                         <StatusBadge tone="ok">5/5 ACTIVE</StatusBadge>
                     </div>
@@ -202,14 +198,17 @@ export default function DetailPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 flex-1 min-h-0">
                     {/* LEFT: mannequin */}
                     <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
-                        <div className="neo-inset p-3 flex-1 min-h-0 flex items-center justify-center overflow-hidden">
+                        <div className="text-[12px] text-slate-500 mb-3 text-center">
+                            Klik mannequin / kartu lokasi untuk fokus grafik (2 sensor per lokasi).
+                        </div>
+                        <div className="neo-inset p-3 flex-1 min-h-[320px] sm:min-h-0 flex items-center justify-center overflow-hidden">
                             <div className="relative h-full max-h-full aspect-[2/3]">
                                 <MannequinHotspotSVG
                                     className="absolute inset-0 w-full h-full"
                                     activePart={activePart}
                                     onClickPart={setActivePart}
-                                    onHoverPart={() => {}}
-                                    onLeavePart={() => {}}
+                                    onHoverPart={() => { }}
+                                    onLeavePart={() => { }}
                                 />
                             </div>
                         </div>
@@ -221,7 +220,7 @@ export default function DetailPage() {
                                 <span className="font-semibold text-slate-900">{PART_LABEL[activePart]}</span>
                             </div>
                             <div className="text-sm text-slate-600">
-                                S1: {fmt(currentData.current.sensor1)} {meta.unit} | 
+                                S1: {fmt(currentData.current.sensor1)} {meta.unit} |
                                 S2: {fmt(currentData.current.sensor2)} {meta.unit}
                             </div>
                         </div>
@@ -231,7 +230,7 @@ export default function DetailPage() {
                     <section className="lg:col-span-8 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
                             {/* Chart Sensor 1 */}
-                            <div className="neo-inset p-4 flex flex-col min-h-0">
+                            <div className="neo-inset p-4 flex flex-col min-h-[240px] sm:min-h-0">
                                 <div className="font-semibold text-slate-800 mb-2">
                                     Sensor 1 – {meta.label} ({meta.unit})
                                 </div>
@@ -242,12 +241,12 @@ export default function DetailPage() {
                                             <XAxis dataKey="time" tick={{ fontSize: 10 }} />
                                             <YAxis tick={{ fontSize: 10 }} />
                                             <Tooltip />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="v" 
-                                                strokeWidth={2} 
+                                            <Line
+                                                type="monotone"
+                                                dataKey="v"
+                                                strokeWidth={2}
                                                 stroke="#10b981"
-                                                dot={false} 
+                                                dot={false}
                                             />
                                         </LineChart>
                                     </ResponsiveContainer>
@@ -255,7 +254,7 @@ export default function DetailPage() {
                             </div>
 
                             {/* Chart Sensor 2 */}
-                            <div className="neo-inset p-4 flex flex-col min-h-0">
+                            <div className="neo-inset p-4 flex flex-col min-h-[240px] sm:min-h-0">
                                 <div className="font-semibold text-slate-800 mb-2">
                                     Sensor 2 – {meta.label} ({meta.unit})
                                 </div>
@@ -266,12 +265,12 @@ export default function DetailPage() {
                                             <XAxis dataKey="time" tick={{ fontSize: 10 }} />
                                             <YAxis tick={{ fontSize: 10 }} />
                                             <Tooltip />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="v" 
-                                                strokeWidth={2} 
+                                            <Line
+                                                type="monotone"
+                                                dataKey="v"
+                                                strokeWidth={2}
                                                 stroke="#3b82f6"
-                                                dot={false} 
+                                                dot={false}
                                             />
                                         </LineChart>
                                     </ResponsiveContainer>
@@ -283,9 +282,9 @@ export default function DetailPage() {
 
                 {/* LOCATION BAR */}
                 <div className="neo-surface p-3 sm:p-4">
-                    <div className="flex gap-4 overflow-x-auto pb-2">
+                    <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
                         {PARTS.map((id) => (
-                            <div key={id} className="min-w-[260px] sm:min-w-[280px]">
+                            <div key={id} className="min-w-[220px] sm:min-w-[280px] snap-start">
                                 <LocationPill
                                     label={PART_LABEL[id]}
                                     value1={sensorData[id]?.current?.sensor1 || 0}

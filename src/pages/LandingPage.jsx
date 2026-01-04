@@ -1,25 +1,30 @@
+// LandingPage.jsx (Responsive)
 import { Link } from "react-router-dom";
 import { User, Shield, Activity, BarChart3, FileText } from "lucide-react";
 
 const BG = "#F1F1F1";
 
-// Neo Light (dari screenshot kamu)
+// Neo Light
 const neoLightShadow = `
   -15px -15px 15px rgba(255,255,255,0.5),
   15px 15px 15px rgba(209,214,230,1)
 `;
 
-// inset look (untuk box deskripsi / input-like)
+// inset look
 const neoInsetShadow = `
   inset -10px -10px 20px rgba(255,255,255,0.9),
   inset 10px 10px 20px rgba(209,214,230,0.9)
 `;
 
 function Frame1440({ children }) {
-    // tetap 1440 (sesuai figma), tapi aman kalau layar kecil (jadi scroll horizontal minim)
+    // ✅ Responsive:
+    // - tetap "feel" 1440 (max width)
+    // - tapi aman untuk layar kecil (tanpa scroll horizontal)
     return (
         <div className="w-full flex justify-center" style={{ backgroundColor: BG }}>
-            <div style={{ width: 1440, backgroundColor: BG }}>{children}</div>
+            <div className="w-full max-w-[1440px]" style={{ backgroundColor: BG }}>
+                {children}
+            </div>
         </div>
     );
 }
@@ -60,18 +65,11 @@ function NavPill({ children, href }) {
     return (
         <a
             href={href}
+            className="inline-flex items-center justify-center rounded-2xl font-semibold text-slate-500 text-sm
+                 h-10 px-4 sm:h-11 sm:px-6"
             style={{
-                height: 44,
-                padding: "0 22px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 16,
                 background: BG,
                 boxShadow: neoLightShadow,
-                color: "#6B7280",
-                fontWeight: 600,
-                fontSize: 14,
             }}
         >
             {children}
@@ -81,28 +79,26 @@ function NavPill({ children, href }) {
 
 function FeatureCard({ Icon, title, desc }) {
     return (
-        <NeoSurface style={{ borderRadius: 22, padding: 28 }}>
+        <NeoSurface className="w-full" style={{ borderRadius: 22, padding: 28 }}>
             <div className="flex flex-col items-center text-center">
                 <div
+                    className="flex items-center justify-center"
                     style={{
                         width: 62,
                         height: 62,
                         borderRadius: 16,
                         background: BG,
                         boxShadow: neoLightShadow,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
                     }}
                 >
                     <Icon size={26} className="text-emerald-600" />
                 </div>
 
-                <div className="mt-5" style={{ fontWeight: 700, color: "#4B5563", fontSize: 18 }}>
+                <div className="mt-5 font-bold text-slate-600" style={{ fontSize: 18 }}>
                     {title}
                 </div>
 
-                <p className="mt-3" style={{ color: "#94A3B8", fontSize: 12, lineHeight: "18px", maxWidth: 260 }}>
+                <p className="mt-3 text-slate-400 text-xs leading-[18px] max-w-[260px]">
                     {desc}
                 </p>
             </div>
@@ -116,161 +112,108 @@ export default function LandingPage() {
             <Frame1440>
                 {/* NAVBAR */}
                 <header
+                    className="w-full"
                     style={{
-                        height: 88,
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "0 80px",
                         background: BG,
                         boxShadow: "0px 18px 30px rgba(15,23,42,0.10)",
                     }}
                 >
-                    <div className="flex items-center justify-between w-full">
-                        {/* logo kiri */}
-                        <img
-                            src="/public/logo stas rg baru besar.png"
-                            alt="STAS RG"
-                            style={{ height: 34, width: "auto" }}
-                            draggable={false}
-                        />
+                    <div className="h-[72px] sm:h-[88px] px-4 sm:px-8 lg:px-20 flex items-center">
+                        <div className="flex items-center justify-between w-full gap-4">
+                            {/* logo kiri */}
+                            <img
+                                src="/public/logo stas rg baru besar.png"
+                                alt="STAS RG"
+                                className="h-7 sm:h-[34px] w-auto shrink-0"
+                                draggable={false}
+                            />
 
-                        {/* menu kanan */}
-                        <div className="flex items-center gap-5">
-                            <NavPill href="#about">About</NavPill>
-                            <NavPill href="#contact">Contact</NavPill>
+                            {/* menu kanan */}
+                            <div className="flex items-center gap-3 sm:gap-5 flex-wrap justify-end">
+                                <NavPill href="#about">About</NavPill>
+                                <NavPill href="#contact">Contact</NavPill>
+                            </div>
                         </div>
                     </div>
                 </header>
 
                 {/* HERO */}
                 <section
-                    style={{
-                        padding: "42px 80px 0 80px",
-                        background: BG,
-                    }}
+                    className="px-4 sm:px-8 lg:px-20 pt-10 sm:pt-12 pb-16 sm:pb-20"
+                    style={{ background: BG }}
                 >
-                    {/* wrapper hero image area (1291x726) */}
+                    {/* wrapper hero image area */}
                     <div
-                        style={{
-                            width: 1291,
-                            height: 726,
-                            margin: "0 auto",
-                            position: "relative",
-                        }}
+                        className="
+      mx-auto w-full max-w-[1291px]
+      relative overflow-hidden
+      aspect-[1291/726]
+      min-h-[520px] sm:min-h-0
+    "
                     >
-                        {/* text SMART SKIN (Nunito Sans Bold 210 + gradient + shadow) */}
+                        {/* text SMART SKIN */}
                         <div
+                            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                 z-[4] select-none pointer-events-none text-center whitespace-normal sm:whitespace-nowrap"
                             style={{
-                                position: "absolute",
-                                left: "50%",
-                                top: "50%",
-                                transform: "translate(-50%, -52%)",
                                 fontFamily: "Nunito Sans, sans-serif",
                                 fontWeight: 700,
-                                fontSize: 210,
-                                letterSpacing: "0%",
+                                fontSize: "clamp(56px, 11vw, 210px)",
                                 background: "linear-gradient(180deg, #F8F8FC 0%, #E1E2EB 100%)",
                                 WebkitBackgroundClip: "text",
                                 color: "transparent",
                                 filter:
                                     "drop-shadow(-15px -15px 15px rgba(255,255,255,0.5)) drop-shadow(15px 15px 15px rgba(209,214,230,1))",
                                 userSelect: "none",
-                                whiteSpace: "nowrap",
-                                pointerEvents: "none",
-                                zIndex: 4,
                             }}
                         >
                             SMART&nbsp;SKIN
                         </div>
 
                         {/* mannequin */}
-                        {/* mannequin */}
                         <img
                             src="/manequin.png"
                             alt="Mannequin Smart Skin"
                             draggable={false}
+                            className="absolute inset-0 m-auto w-full h-full object-contain opacity-45 z-[2]"
+                        />
+
+                        {/* bottom fade (mobile & desktop konsisten) */}
+                        <div
+                            className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
                             style={{
-                                position: "absolute",
-                                inset: 0,
-                                margin: "auto",
-                                height: "100%",
-                                width: "auto",
-                                opacity: 0.45,
-                                filter: "blur(0px)",
-                                zIndex: 2,
+                                height: "clamp(180px, 32vw, 320px)", // ✅ lebih tinggi di mobile
+                                background:
+                                    "linear-gradient(to bottom, rgba(241,241,241,0) 0%, rgba(241,241,241,0.7) 55%, rgba(241,241,241,1) 92%)",
                             }}
                         />
 
-                        {/* === BOTTOM FADE (seperti foto ke-2) === */}
+                        {/* soft glow untuk menyamakan feel desktop */}
                         <div
+                            className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
                             style={{
-                                position: "absolute",
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                height: 260,                 // tinggi area fade (boleh 220–320)
-                                zIndex: 3,                   // di atas gambar
-                                pointerEvents: "none",
-                                background: "linear-gradient(to bottom, rgba(241,241,241,0) 0%, rgba(241,241,241,1) 78%)",
-                            }}
-                        />
-
-                        {/* optional: glow lembut biar lebih “kabut” seperti figma */}
-                        <div
-                            style={{
-                                position: "absolute",
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                height: 180,
-                                zIndex: 3,
-                                pointerEvents: "none",
+                                height: "clamp(140px, 26vw, 260px)",
                                 background:
                                     "radial-gradient(ellipse at center, rgba(241,241,241,0) 0%, rgba(241,241,241,0.85) 70%, rgba(241,241,241,1) 100%)",
                                 filter: "blur(10px)",
-                                opacity: 0.9,
+                                opacity: 0.95,
                             }}
                         />
 
-
                         {/* caption + button */}
                         <div
-                            style={{
-                                position: "absolute",
-                                left: "50%",
-                                bottom: 110,
-                                transform: "translateX(-50%)",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                zIndex: 3,
-                            }}
+                            className="absolute left-1/2 -translate-x-1/2 z-[4] px-4 w-full flex flex-col items-center"
+                            style={{ bottom: "clamp(44px, 10vw, 120px)" }}
                         >
-                            <p
-                                style={{
-                                    fontSize: 16,
-                                    color: "#6B7280",
-                                    textAlign: "center",
-                                    marginBottom: 22,
-                                }}
-                            >
-                                Analisis dampak lingkungan medan <br />
-                                tempur terhadap prajurit
+                            <p className="text-sm sm:text-base text-slate-500 text-center mb-5 sm:mb-6">
+                                Analisis dampak lingkungan medan tempur terhadap prajurit
                             </p>
 
                             <Link
                                 to="/dashboard"
+                                className="inline-flex items-center justify-center rounded-2xl bg-[#1CD400]
+                   text-white font-bold text-sm sm:text-base px-10 py-4 sm:px-12 sm:py-5"
                                 style={{
-                                    width: 257,
-                                    height: 70,
-                                    borderRadius: 24,
-                                    background: "#1CD400",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#FFFFFF",
-                                    fontWeight: 700,
-                                    fontSize: 16,
                                     textDecoration: "none",
                                     boxShadow:
                                         "-15px -15px 15px rgba(255,255,255,0.5), 15px 15px 15px rgba(0,0,0,0.15)",
@@ -282,96 +225,76 @@ export default function LandingPage() {
                     </div>
                 </section>
 
+
                 {/* ABOUT */}
                 <section
                     id="about"
-                    style={{
-                        padding: "64px 80px 0 80px",
-                        background: BG,
-                    }}
+                    className="px-4 sm:px-8 lg:px-20 pt-14 sm:pt-16"
+                    style={{ background: BG }}
                 >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 items-start">
                         {/* kiri */}
                         <div>
-                            <div className="flex items-center gap-3" style={{ color: "#94A3B8", fontSize: 14 }}>
+                            <div className="flex items-center gap-3 text-slate-400 text-sm">
                                 <div
+                                    className="flex items-center justify-center"
                                     style={{
                                         width: 34,
                                         height: 34,
                                         borderRadius: 12,
                                         background: BG,
                                         boxShadow: neoLightShadow,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
                                     }}
                                 >
                                     <User size={16} className="text-slate-500" />
                                 </div>
-                                <div style={{ fontWeight: 700, color: "#94A3B8" }}>About Page</div>
+                                <div className="font-bold">About Page</div>
                             </div>
 
                             <h2
-                                style={{
-                                    marginTop: 18,
-                                    fontSize: 40,
-                                    fontWeight: 800,
-                                    lineHeight: "48px",
-                                    color: "#4B5563",
-                                }}
+                                className="mt-4 sm:mt-5 font-extrabold text-slate-600 leading-tight"
+                                style={{ fontSize: "clamp(28px, 3vw, 40px)" }}
                             >
-                                Mannequin With{" "}
-                                <span style={{ color: "#1CD400" }}>Smart Skin</span>
+                                Mannequin With <span style={{ color: "#1CD400" }}>Smart Skin</span>
                                 <br />
                                 for Battlefield Simulation
                             </h2>
 
                             <div
+                                className="mt-4 h-[2px] rounded-full"
                                 style={{
-                                    marginTop: 16,
-                                    height: 2,
-                                    width: 320,
-                                    borderRadius: 999,
+                                    width: "min(320px, 70vw)",
                                     background: "rgba(148,163,184,0.35)",
                                 }}
                             />
 
-                            <NeoInset style={{ marginTop: 22, padding: 18, width: 520 }}>
-                                <p style={{ fontSize: 13, lineHeight: "18px", color: "#94A3B8" }}>
-                                    Smart Skin mengubah permukaan tubuh mannequin menjadi jaringan sensor.
-                                    Setiap benturan, tekanan, dan getaran terekam sebagai data digital,
-                                    sehingga pelatih dapat menilai risiko cedera prajurit secara aman dan terukur.
+                            <NeoInset className="mt-5 sm:mt-6 p-4 sm:p-[18px] w-full max-w-[520px]">
+                                <p className="text-xs sm:text-[13px] leading-[18px] text-slate-400">
+                                    Smart Skin mengubah permukaan tubuh mannequin menjadi jaringan
+                                    sensor. Setiap benturan, tekanan, dan getaran terekam sebagai
+                                    data digital, sehingga pelatih dapat menilai risiko cedera
+                                    prajurit secara aman dan terukur.
                                 </p>
                             </NeoInset>
                         </div>
 
                         {/* kanan: frame gambar */}
-                        <div className="flex justify-end">
-                            <NeoSurface style={{ width: 560, height: 260, overflow: "hidden" }}>
+                        <div className="flex justify-start lg:justify-end">
+                            <NeoSurface className="w-full max-w-[560px] h-[220px] sm:h-[260px] overflow-hidden relative">
+                                {/* placeholder (di belakang) */}
+                                <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm">
+                                    About Image Frame
+                                </div>
+
                                 <img
                                     src="/about-image.png"
                                     alt="About Illustration"
-                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    className="absolute inset-0 w-full h-full object-cover"
                                     draggable={false}
                                     onError={(e) => {
-                                        // kalau about-image.png belum ada, tampilkan placeholder halus
                                         e.currentTarget.style.display = "none";
                                     }}
                                 />
-                                {/* fallback placeholder kalau gambar belum ada */}
-                                <div
-                                    style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "#CBD5E1",
-                                        fontSize: 14,
-                                    }}
-                                >
-                                    About Image Frame
-                                </div>
                             </NeoSurface>
                         </div>
                     </div>
@@ -379,24 +302,14 @@ export default function LandingPage() {
 
                 {/* FEATURE */}
                 <section
-                    style={{
-                        padding: "70px 80px 0 80px",
-                        background: BG,
-                    }}
+                    className="px-4 sm:px-8 lg:px-20 pt-16 sm:pt-20"
+                    style={{ background: BG }}
                 >
-                    <div style={{ textAlign: "center", fontWeight: 800, color: "#6B7280", fontSize: 22 }}>
+                    <div className="text-center font-extrabold text-slate-500 text-lg sm:text-[22px]">
                         FEATURE
                     </div>
 
-                    <div
-                        style={{
-                            marginTop: 28,
-                            display: "grid",
-                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                            gap: 28,
-                            justifyItems: "center",
-                        }}
-                    >
+                    <div className="mt-6 sm:mt-7 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
                         <FeatureCard
                             Icon={Shield}
                             title="Save Simulation"
@@ -423,15 +336,13 @@ export default function LandingPage() {
                 {/* FOOTER */}
                 <footer
                     id="contact"
-                    style={{
-                        padding: "80px 80px 40px 80px",
-                        background: BG,
-                    }}
+                    className="px-4 sm:px-8 lg:px-20 pt-16 sm:pt-20 pb-10"
+                    style={{ background: BG }}
                 >
                     <img
                         src="/public/logo stas rg baru besar.png"
                         alt="STAS RG"
-                        style={{ height: 34, width: "auto" }}
+                        className="h-7 sm:h-[34px] w-auto"
                         draggable={false}
                     />
                 </footer>

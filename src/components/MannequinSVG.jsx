@@ -1,4 +1,3 @@
-// src/components/MannequinSVG.jsx
 import { useMemo, useState } from "react";
 
 export default function MannequinHotspotSVG({
@@ -7,13 +6,10 @@ export default function MannequinHotspotSVG({
     onClickPart,
     onHoverPart,
     onLeavePart,
-    // kalau file mannequin kamu beda, ganti default ini:
     imageHref = "/mannequin-back.png",
 }) {
     const [hoverId, setHoverId] = useState(null);
 
-    // Titik sensor (koordinat pakai viewBox 0..100 x 0..150)
-    // Ini “cukup dekat” dengan mannequin back view; tinggal fine-tune sedikit kalau perlu
     const SENSORS = useMemo(
         () => [
             { id: "back", x: 50, y: 30 },
@@ -30,12 +26,10 @@ export default function MannequinHotspotSVG({
     const isActive = (id) => activePart === id;
     const isHover = (id) => hoverId === id;
 
-    // warna hijau
-    const dotFill = "rgba(16,185,129,1)";       // emerald-500
+    const dotFill = "rgba(16,185,129,1)";
     const ringStroke = "rgba(16,185,129,0.65)";
     const haloFill = "rgba(16,185,129,0.22)";
 
-    // ukuran titik
     const DOT_R = 2;
     const HALO_R = 6;
 
