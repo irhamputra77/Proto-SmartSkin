@@ -13,10 +13,8 @@ export default function MannequinHotspotSVG({
     const SENSORS = useMemo(
         () => [
             { id: "back", x: 50, y: 30 },
-
             { id: "left-arm", x: 34, y: 45 },
             { id: "right-arm", x: 67, y: 45 },
-
             { id: "left-leg", x: 43.2, y: 85 },
             { id: "right-leg", x: 58.2, y: 85 },
         ],
@@ -26,12 +24,30 @@ export default function MannequinHotspotSVG({
     const isActive = (id) => activePart === id;
     const isHover = (id) => hoverId === id;
 
-    const dotFill = "rgba(16,185,129,1)";
-    const ringStroke = "rgba(16,185,129,0.65)";
-    const haloFill = "rgba(16,185,129,0.22)";
-
+    // ======== ukuran ========
     const DOT_R = 2;
     const HALO_R = 6;
+
+    // ======== pulse ========
+    const PULSE_R_FROM = HALO_R - 1;
+    const PULSE_R_TO = HALO_R + 7;
+    const PULSE_DUR = "1.2s";
+
+    // ======== palet warna ========
+    // aktif (hijau)
+    const ACTIVE_DOT = "rgba(16,185,129,1)";
+    const ACTIVE_RING = "rgba(16,185,129,0.75)";
+    const ACTIVE_HALO = "rgba(16,185,129,0.24)";
+
+    // normal (idle) - masih hijau tapi lebih lembut
+    const IDLE_DOT = "rgba(16,185,129,0.85)";
+    const IDLE_RING = "rgba(16,185,129,0.45)";
+    const IDLE_HALO = "rgba(16,185,129,0.14)";
+
+    // redup saat ada activePart lain (dim)
+    const DIM_DOT = "rgba(16,185,129,0.60)";
+    const DIM_RING = "rgba(16,185,129,0.35)";
+    const DIM_HALO = "rgba(16,185,129,0.14)";
 
     return (
         <svg
@@ -40,7 +56,45 @@ export default function MannequinHotspotSVG({
             preserveAspectRatio="xMidYMid meet"
             xmlns="http://www.w3.org/2000/svg"
         >
-            {/* Mannequin di dalam SVG -> titik akan selalu align */}
+
+            <defs>
+                <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    {/* glow layer 1 */}
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur1" />
+                    <feColorMatrix
+                        in="blur1"
+                        type="matrix"
+                        values="
+                                    0 0 0 0 0.06
+                                    0 0 0 0 0.85
+                                    0 0 0 0 0.55
+                                    0 0 0 0.95 0
+                                "
+                        result="glow1"
+                    />
+
+                    {/* glow layer 2 (lebih lebar) */}
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4.8" result="blur2" />
+                    <feColorMatrix
+                        in="blur2"
+                        type="matrix"
+                        values="
+                                    0 0 0 0 0.06
+                                    0 0 0 0 0.85
+                                    0 0 0 0 0.55
+                                    0 0 0 0.55 0
+                                "
+                        result="glow2"
+                    />
+
+                    <feMerge>
+                        <feMergeNode in="glow2" />
+                        <feMergeNode in="glow1" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+
             <image
                 href={imageHref}
                 x="0"
@@ -54,25 +108,68 @@ export default function MannequinHotspotSVG({
                 const active = isActive(s.id);
                 const hover = isHover(s.id);
 
-                const haloOpacity = active ? 0.38 : hover ? 0.28 : 0.18;
-                const ringOpacity = active ? 0.95 : hover ? 0.75 : 0.45;
+                // jika ada activePart dan ini bukan yang aktif -> redupkan
+                const dimOthers = Boolean(activePart) && !active;
+
+                // pilih warna berdasarkan state
+                const dotFill = active ? ACTIVE_DOT : dimOthers ? DIM_DOT : IDLE_DOT;
+                const ringStroke = active ? ACTIVE_RING : dimOthers ? DIM_RING : IDLE_RING;
+                const haloFill = active ? ACTIVE_HALO : dimOthers ? DIM_HALO : IDLE_HALO;
+
+                // opacity halus supaya hover masih terasa
+                const haloOpacity = active ? 0.45 : hover ? 0.28 : dimOthers ? 0.12 : 0.18;
+                const ringOpacity = active ? 1 : hover ? 0.65 : dimOthers ? 0.35 : 0.5;
+                const dotOpacity = active ? 1 : hover ? 0.9 : dimOthers ? 0.55 : 0.85;
 
                 return (
                     <g
                         key={s.id}
-                        onMouseEnter={() => {
-                            setHoverId(s.id);
-                            onHoverPart?.(s.id);
-                        }}
-                        onMouseLeave={() => {
-                            setHoverId(null);
-                            onLeavePart?.();
-                        }}
+                        onMouseEnter={() => { setHoverId(s.id); onHoverPart?.(s.id); }}
+                        onMouseLeave={() => { setHoverId(null); onLeavePart?.(); }}
                         onClick={() => onClickPart?.(s.id)}
-                        style={{ cursor: "pointer" }}
+                        style={{
+                            cursor: "pointer",
+                            transition: "opacity 160ms ease",
+                            opacity: dimOthers ? 0.85 : 1,
+                            filter: active ? "url(#neonGlow)" : "none",
+                        }}
                     >
+
+                        {/* PULSE hanya untuk aktif */}
+                        {active && (
+                            <circle
+                                cx={s.x}
+                                cy={s.y}
+                                r={PULSE_R_FROM}
+                                fill="transparent"
+                                stroke="rgba(16,185,129,0.55)"
+                                strokeWidth="2"
+                                opacity="0.7"
+                                pointerEvents="none"
+                            >
+                                <animate
+                                    attributeName="r"
+                                    values={`${PULSE_R_FROM};${PULSE_R_TO}`}
+                                    dur={PULSE_DUR}
+                                    repeatCount="indefinite"
+                                />
+                                <animate
+                                    attributeName="opacity"
+                                    values="0.65;0"
+                                    dur={PULSE_DUR}
+                                    repeatCount="indefinite"
+                                />
+                            </circle>
+                        )}
+
                         {/* halo */}
-                        <circle cx={s.x} cy={s.y} r={HALO_R} fill={haloFill} opacity={haloOpacity} />
+                        <circle
+                            cx={s.x}
+                            cy={s.y}
+                            r={HALO_R}
+                            fill={haloFill}
+                            opacity={haloOpacity}
+                        />
                         {/* ring */}
                         <circle
                             cx={s.x}
@@ -83,11 +180,14 @@ export default function MannequinHotspotSVG({
                             strokeWidth="1.4"
                             opacity={ringOpacity}
                         />
-                        {/* dot utama */}
-                        <circle cx={s.x} cy={s.y} r={DOT_R} fill={dotFill} />
-
-                        {/* label kecil saat hover/active (opsional, tapi enak buat UX) */}
-
+                        {/* dot */}
+                        <circle
+                            cx={s.x}
+                            cy={s.y}
+                            r={DOT_R}
+                            fill={dotFill}
+                            opacity={dotOpacity}
+                        />
                     </g>
                 );
             })}

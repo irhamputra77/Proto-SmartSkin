@@ -4,22 +4,18 @@ import { User, Shield, Activity, BarChart3, FileText } from "lucide-react";
 
 const BG = "#F1F1F1";
 
-// Neo Light
 const neoLightShadow = `
   -15px -15px 15px rgba(255,255,255,0.5),
   15px 15px 15px rgba(209,214,230,1)
 `;
 
-// inset look
 const neoInsetShadow = `
   inset -10px -10px 20px rgba(255,255,255,0.9),
   inset 10px 10px 20px rgba(209,214,230,0.9)
 `;
 
 function Frame1440({ children }) {
-    // ✅ Responsive:
-    // - tetap "feel" 1440 (max width)
-    // - tapi aman untuk layar kecil (tanpa scroll horizontal)
+
     return (
         <div className="w-full flex justify-center" style={{ backgroundColor: BG }}>
             <div className="w-full max-w-[1440px]" style={{ backgroundColor: BG }}>
@@ -142,7 +138,6 @@ export default function LandingPage() {
                     className="px-4 sm:px-8 lg:px-20 pt-10 sm:pt-12 pb-16 sm:pb-20"
                     style={{ background: BG }}
                 >
-                    {/* wrapper hero image area */}
                     <div
                         className="
       mx-auto w-full max-w-[1291px]
@@ -178,17 +173,16 @@ export default function LandingPage() {
                             className="absolute inset-0 m-auto w-full h-full object-contain opacity-45 z-[2]"
                         />
 
-                        {/* bottom fade (mobile & desktop konsisten) */}
+
                         <div
                             className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
                             style={{
-                                height: "clamp(180px, 32vw, 320px)", // ✅ lebih tinggi di mobile
+                                height: "clamp(180px, 32vw, 320px)",
                                 background:
                                     "linear-gradient(to bottom, rgba(241,241,241,0) 0%, rgba(241,241,241,0.7) 55%, rgba(241,241,241,1) 92%)",
                             }}
                         />
 
-                        {/* soft glow untuk menyamakan feel desktop */}
                         <div
                             className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
                             style={{

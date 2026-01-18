@@ -20,7 +20,7 @@ const SENSOR_TYPES = [
         Icon: Thermometer,
         desc: "Thermal load monitoring",
         sensorName: "Temperature Sensor",
-        backendType: "humidity", // mapping ke backend
+        backendType: "humidity",
     },
     {
         key: "press",
@@ -44,8 +44,8 @@ const SENSOR_TYPES = [
 
 // Mapping lokasi
 const LOCATION_MAP = {
-    "right arm": "right-leg",  // asumsi paha kanan = kaki kanan
-    "left arm": "left-leg",    // asumsi paha kiri = kaki kiri
+    "right arm": "right-leg",
+    "left arm": "left-leg",
     "right leg": "right-leg",
     "left leg": "left-leg",
     "back": "back",
@@ -70,7 +70,6 @@ export default function DashboardPage() {
                 if (!res.ok) throw new Error('Gagal ambil data');
                 const readings = await res.json();
 
-                // Kelompokkan data per sensor type
                 const sensorData = {
                     temp: [],
                     press: [],
@@ -88,7 +87,6 @@ export default function DashboardPage() {
                     }
                 });
 
-                // Hitung summary
                 const newSummary = {};
                 for (const key of Object.keys(sensorData)) {
                     const values = sensorData[key];
@@ -104,13 +102,12 @@ export default function DashboardPage() {
                     }
                 }
 
-                // Buat time-series agregat (60 menit terakhir)
+
                 const now = Date.now();
                 const timeSeries = {};
                 for (const key of Object.keys(sensorData)) {
                     timeSeries[key] = Array.from({ length: 60 }).map((_, i) => {
                         const t = new Date(now - (59 - i) * 60_000);
-                        // Ambil nilai rata-rata dari data real, atau dummy jika tidak ada
                         const avgVal = sensorData[key].length > 0
                             ? sensorData[key][i % sensorData[key].length]
                             : key === "temp" ? 28 + Math.sin(i / 6) * 1.1 :
@@ -129,7 +126,6 @@ export default function DashboardPage() {
                 setLoading(false);
             } catch (err) {
                 console.error("Error fetching data:", err);
-                // Tetap tampilkan dummy jika error
                 setSummary({
                     temp: { avg: 28.2, min: 26.9, max: 30.1, status: "ok" },
                     vib: { avg: 0.62, min: 0.21, max: 1.02, status: "ok" },

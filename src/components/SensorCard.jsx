@@ -7,7 +7,7 @@ export default function SensorCard({
     active,
     status = "ok",
     onClick,
-    Icon, // ✅ tambah: icon component (lucide-react)
+    Icon,
 }) {
     return (
         <button
