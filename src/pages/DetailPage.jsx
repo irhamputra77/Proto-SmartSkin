@@ -23,17 +23,26 @@ const SENSOR_META = {
 const PART_LABEL = {
     "right-arm": "Tangan Kanan",
     "left-arm": "Tangan Kiri",
-    "right-leg": "Kaki Kanan",
-    "left-leg": "Kaki Kiri",
+    "right-leg": "Paha Kanan",
+    "left-leg": "Paha Kiri",
     back: "Punggung",
 };
 
 const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
+// Jumlah sensor per lokasi
+const SENSOR_COUNT = {
+  "right-arm": 2,
+  "left-arm": 2,
+  "right-leg": 3,
+  "left-leg": 3,
+  "back": 4,
+};
+
 // Mapping backend ke frontend
 const LOCATION_MAP_BACKEND = {
-    "right arm": "right-leg",
-    "left arm": "left-leg",
+    "right arm": "right-arm",
+    "left arm": "left-arm",
     "right leg": "right-leg",
     "left leg": "left-leg",
     "back": "back",
@@ -49,7 +58,7 @@ export default function DetailPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://api-ss.stas-rg.com";
         
         const fetchData = async () => {
             try {
@@ -57,14 +66,21 @@ export default function DetailPage() {
                 if (!res.ok) throw new Error('Gagal ambil data');
                 const readings = await res.json();
 
-                // Kelompokkan data per lokasi dan nomor sensor
+                // Inisialisasi data per lokasi
                 const data = {};
                 PARTS.forEach(part => {
+                    const sensorCount = SENSOR_COUNT[part];
+                    const sensors = {};
+                    for (let i = 1; i <= sensorCount; i++) {
+                      sensors[`sensor${i}`] = [];
+                    }
                     data[part] = {
-                        sensor1: [],
-                        sensor2: [],
-                        current: { sensor1: 0, sensor2: 0 }
+                      ...sensors,
+                      current: {}
                     };
+                    for (let i = 1; i <= sensorCount; i++) {
+                      data[part].current[`sensor${i}`] = 0;
+                    }
                 });
 
                 readings.forEach(r => {
@@ -76,30 +92,37 @@ export default function DetailPage() {
                     );
                     
                     if (frontendLoc && frontendType === sensorKey && r.value != null) {
-                        const sensorNum = r.sensor.externalId; // 1 atau 2
+                        const sensorNum = r.sensor.externalId;
                         const value = parseFloat(r.value);
+                        const timestamp = new Date(r.timestamp).getTime();
                         
-                        if (sensorNum === 1) {
-                            data[frontendLoc].sensor1.push({
-                                time: new Date(r.timestamp).toLocaleTimeString([], { 
-                                    hour: "2-digit", 
-                                    minute: "2-digit" 
-                                }),
-                                v: value
-                            });
-                            data[frontendLoc].current.sensor1 = value;
-                        } else if (sensorNum === 2) {
-                            data[frontendLoc].sensor2.push({
-                                time: new Date(r.timestamp).toLocaleTimeString([], { 
-                                    hour: "2-digit", 
-                                    minute: "2-digit" 
-                                }),
-                                v: value
-                            });
-                            data[frontendLoc].current.sensor2 = value;
+                        const sensorKey = `sensor${sensorNum}`;
+                        if (data[frontendLoc][sensorKey] !== undefined) {
+                          data[frontendLoc][sensorKey].push({
+                              time: new Date(r.timestamp).toLocaleTimeString([], { 
+                                  hour: "2-digit", 
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                  hour12: false
+                              }),
+                              v: value,
+                              rawTime: timestamp
+                          });
+                          data[frontendLoc].current[sensorKey] = value;
                         }
                     }
                 });
+
+                // Urutkan data berdasarkan waktu
+                for (const part of PARTS) {
+                  const sensorCount = SENSOR_COUNT[part];
+                  for (let i = 1; i <= sensorCount; i++) {
+                    const key = `sensor${i}`;
+                    if (data[part][key]?.length > 0) {
+                      data[part][key].sort((a, b) => a.rawTime - b.rawTime);
+                    }
+                  }
+                }
 
                 setSensorData(data);
                 setLoading(false);
@@ -114,16 +137,21 @@ export default function DetailPage() {
         return () => clearInterval(interval);
     }, [sensorKey]);
 
-    const currentData = sensorData[activePart] || { current: { sensor1: 0, sensor2: 0 } };
-    const series1 = sensorData[activePart]?.sensor1 || [];
-    const series2 = sensorData[activePart]?.sensor2 || [];
+    const currentData = sensorData[activePart] || { current: {} };
+    const sensorCount = SENSOR_COUNT[activePart] || 2;
+    
+    // Ambil series untuk setiap sensor (batasi 7 titik)
+    const series = {};
+    for (let i = 1; i <= sensorCount; i++) {
+      series[`sensor${i}`] = sensorData[activePart]?.[`sensor${i}`]?.slice(-7) || [];
+    }
 
     function fmt(v) {
         if (typeof v !== "number") return "0";
         return Number.isInteger(v) ? String(v) : v.toFixed(2);
     }
 
-    function LocationPill({ label, value1, value2, unit, active, onClick }) {
+    function LocationPill({ label, currentData, unit, active, onClick }) {
         return (
             <button
                 type="button"
@@ -148,14 +176,14 @@ export default function DetailPage() {
                 </div>
 
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                        <div className="text-xs text-slate-500">Sensor 1</div>
-                        <div className="text-lg font-semibold text-slate-900">{fmt(value1)}</div>
+                  {Object.keys(currentData).map((key, idx) => (
+                    <div key={key}>
+                      <div className="text-xs text-slate-500">Sensor {idx+1}</div>
+                      <div className="text-lg font-semibold text-slate-900">
+                        {fmt(currentData[key])}
+                      </div>
                     </div>
-                    <div>
-                        <div className="text-xs text-slate-500">Sensor 2</div>
-                        <div className="text-lg font-semibold text-slate-900">{fmt(value2)}</div>
-                    </div>
+                  ))}
                 </div>
 
                 <div className="mt-1 text-xs text-slate-500">
@@ -164,6 +192,9 @@ export default function DetailPage() {
             </button>
         );
     }
+
+    // Warna untuk setiap sensor
+    const SENSOR_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444"];
 
     return (
         <div className="h-screen bg-[#e9eef3] p-4 sm:p-6 overflow-hidden">
@@ -188,13 +219,13 @@ export default function DetailPage() {
                         </div>
 
                         <div className="text-sm text-slate-500 mt-1">
-                            Klik mannequin / kartu lokasi untuk fokus grafik (2 sensor per lokasi).
+                            Klik mannequin / kartu lokasi untuk fokus grafik.
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
                         <NeoButton>Last 1h</NeoButton>
-                        <StatusBadge tone="ok">5/5 ACTIVE</StatusBadge>
+                        <StatusBadge tone="ok">ACTIVE</StatusBadge>
                     </div>
                 </div>
 
@@ -221,62 +252,50 @@ export default function DetailPage() {
                                 <span className="font-semibold text-slate-900">{PART_LABEL[activePart]}</span>
                             </div>
                             <div className="text-sm text-slate-600">
-                                S1: {fmt(currentData.current.sensor1)} {meta.unit} | 
-                                S2: {fmt(currentData.current.sensor2)} {meta.unit}
+                              {Object.entries(currentData.current).map(([key, value], idx) => (
+                                <span key={key}>
+                                  S{idx+1}: {fmt(value)} {meta.unit}{idx < Object.keys(currentData.current).length - 1 ? " | " : ""}
+                                </span>
+                              ))}
                             </div>
                         </div>
                     </section>
 
-                    {/* RIGHT: charts (2 charts) */}
+                    {/* RIGHT: charts (dinamis) */}
                     <section className="lg:col-span-8 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
-                            {/* Chart Sensor 1 */}
-                            <div className="neo-inset p-4 flex flex-col min-h-0">
+                        <div className={`grid gap-4 flex-1 min-h-0 ${
+                          sensorCount <= 2 ? "grid-cols-1 md:grid-cols-2" :
+                          sensorCount === 3 ? "grid-cols-1 md:grid-cols-3" :
+                          "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+                        }`}>
+                          {Array.from({ length: sensorCount }).map((_, i) => {
+                            const sensorNum = i + 1;
+                            const seriesData = series[`sensor${sensorNum}`] || [];
+                            return (
+                              <div key={sensorNum} className="neo-inset p-4 flex flex-col min-h-0">
                                 <div className="font-semibold text-slate-800 mb-2">
-                                    Sensor 1 – {meta.label} ({meta.unit})
+                                  Sensor {sensorNum} – {meta.label} ({meta.unit})
                                 </div>
                                 <div className="flex-1 min-h-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={series1}>
-                                            <CartesianGrid strokeOpacity={0.15} />
-                                            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                                            <YAxis tick={{ fontSize: 10 }} />
-                                            <Tooltip />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="v" 
-                                                strokeWidth={2} 
-                                                stroke="#10b981"
-                                                dot={false} 
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={seriesData}>
+                                      <CartesianGrid strokeOpacity={0.15} />
+                                      <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveEnd" />
+                                      <YAxis tick={{ fontSize: 10 }} />
+                                      <Tooltip />
+                                      <Line 
+                                        type="monotone" 
+                                        dataKey="v" 
+                                        strokeWidth={2} 
+                                        stroke={SENSOR_COLORS[i % SENSOR_COLORS.length]}
+                                        dot={false} 
+                                      />
+                                    </LineChart>
+                                  </ResponsiveContainer>
                                 </div>
-                            </div>
-
-                            {/* Chart Sensor 2 */}
-                            <div className="neo-inset p-4 flex flex-col min-h-0">
-                                <div className="font-semibold text-slate-800 mb-2">
-                                    Sensor 2 – {meta.label} ({meta.unit})
-                                </div>
-                                <div className="flex-1 min-h-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={series2}>
-                                            <CartesianGrid strokeOpacity={0.15} />
-                                            <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                                            <YAxis tick={{ fontSize: 10 }} />
-                                            <Tooltip />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="v" 
-                                                strokeWidth={2} 
-                                                stroke="#3b82f6"
-                                                dot={false} 
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
+                              </div>
+                            );
+                          })}
                         </div>
                     </section>
                 </div>
@@ -288,8 +307,7 @@ export default function DetailPage() {
                             <div key={id} className="min-w-[260px] sm:min-w-[280px]">
                                 <LocationPill
                                     label={PART_LABEL[id]}
-                                    value1={sensorData[id]?.current?.sensor1 || 0}
-                                    value2={sensorData[id]?.current?.sensor2 || 0}
+                                    currentData={sensorData[id]?.current || {}}
                                     unit={meta.unit}
                                     active={activePart === id}
                                     onClick={() => setActivePart(id)}
