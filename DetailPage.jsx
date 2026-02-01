@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
@@ -11,13 +11,12 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip,
-    ReferenceLine,
-    Label
 } from "recharts";
-
 import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
+import { useMemo } from "react";
+import { ReferenceLine } from "recharts";
 
-{/*Ubah Limit Disini*/ }
+
 const SENSOR_META = {
     temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 37 },
     vib: { label: "Vibration", unit: "A", Icon: Waves, backendType: "vibration", limit: 2.5 },
@@ -54,7 +53,7 @@ const SENSOR_COLOR = {
     1: "#10b981", // emerald
     2: "#3b82f6", // blue
     3: "#f59e0b", // amber
-    4: "#10b981", // emerald
+    4: "#ef4444", // red
 };
 
 function fmt(v) {
@@ -90,8 +89,7 @@ function SensorTabs({ count, activeId, onChange }) {
     );
 }
 
-function LocationPill({ label, currentObj, unit, count, active, onClick, threshold }) {
-
+function LocationPill({ label, currentObj, unit, count, active, onClick }) {
     return (
         <button
             type="button"
@@ -116,56 +114,31 @@ function LocationPill({ label, currentObj, unit, count, active, onClick, thresho
             <div
                 className={[
                     "mt-3 w-full overflow-hidden",
-                    "grid gap-2",
-                    count >= 3 ? "grid-cols-2" : "grid-cols-2",
+                    count === 4
+                        ? "grid gap-2 grid-cols-4"
+                        : "grid gap-2 grid-cols-2",
                     "min-h-11"
                 ].join(" ")}
             >
 
-
-                {Array.from({ length: count }, (_, i) => i + 1).map((sid) => {
-                    const raw = Number(currentObj?.[sid] ?? 0);
-                    const isOver = Number.isFinite(raw) && Number.isFinite(threshold) && raw > threshold;
-
-                    return (
-                        <div
-                            key={sid}
-                            className={[
-                                "neo-inset rounded-xl w-full",
-                                "h-10 px-3",
-                                "flex items-center justify-between gap-2",
-                                isOver ? "ring-1 ring-red-400/60" : "",
-                            ].join(" ")}
-                        >
-                            <div className="text-[11px] text-slate-500 font-medium shrink-0">
-                                S{sid}
-                            </div>
-
-                            <div className="flex items-baseline gap-1 min-w-0 justify-end">
-                                <span
-                                    className={[
-                                        "font-semibold tabular-nums truncate",
-                                        count >= 3 ? "text-sm" : "text-base",
-                                        isOver ? "text-red-600" : "text-slate-900",
-                                    ].join(" ")}
-                                >
-                                    {fmt(raw)}
-                                </span>
-
-                                <span
-                                    className={[
-                                        "text-[11px] shrink-0",
-                                        isOver ? "text-red-500" : "text-slate-500",
-                                    ].join(" ")}
-                                >
-                                    {unit}
-                                </span>
-                            </div>
+                {Array.from({ length: count }, (_, i) => i + 1).map((sid) => (
+                    <div
+                        key={sid}
+                        className={[
+                            "neo-inset rounded-xl w-full flex items-center justify-between",
+                            "h-10",
+                            count === 4 ? "px-2" : "px-3"
+                        ].join(" ")}
+                    >
+                        <div className={count === 4 ? "text-[10px] text-slate-500 font-medium" : "text-[11px] text-slate-500 font-medium"}>
+                            S{sid}
                         </div>
-                    );
-                })}
 
-
+                        <div className={count === 4 ? "text-sm font-semibold text-slate-900 whitespace-nowrap" : "text-base font-semibold text-slate-900 whitespace-nowrap"}>
+                            {fmt(currentObj?.[sid] ?? 0)} {unit}
+                        </div>
+                    </div>
+                ))}
             </div>
 
 
@@ -179,16 +152,20 @@ function buildThresholdSeries(series, threshold) {
     const out = [];
     if (!Array.isArray(series) || series.length === 0) return out;
 
+    // pastikan urut waktu
     const sorted = [...series].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
 
     for (let i = 0; i < sorted.length; i++) {
         const cur = sorted[i];
         const prev = sorted[i - 1];
+
+        // kalau ada crossing dari prev ke cur, sisipkan titik potong di threshold
         if (prev && Number.isFinite(prev.v) && Number.isFinite(cur.v)) {
             const a = prev.v - threshold;
             const b = cur.v - threshold;
 
             if (a === 0 || b === 0 || (a < 0 && b > 0) || (a > 0 && b < 0)) {
+                // crossing atau tepat di threshold
                 if (a !== 0 && b !== 0) {
                     const ratio = (threshold - prev.v) / (cur.v - prev.v);
                     const tsCross = prev.ts + ratio * (cur.ts - prev.ts);
@@ -214,98 +191,7 @@ function buildThresholdSeries(series, threshold) {
     return out;
 }
 
-{/*Ubah ke False jika ingin matikan Data Dummy*/ }
-const USE_DUMMY = false;
-
-const BACKEND_LOC_NAME = {
-    "right-arm": "right arm",
-    "left-arm": "left arm",
-    "right-leg": "right leg",
-    "left-leg": "left leg",
-    back: "back",
-};
-
-const DUMMY_TYPES = ["humidity", "vibration", "pressure"];
-
-const DUMMY_VALUE = {
-    humidity: { base: 35, amp: 4.5, period: 18, noise: 0.25, spike: 2.5 },
-    vibration: { base: 2.0, amp: 1.6, period: 14, noise: 0.08, spike: 0.6 },
-    pressure: { base: 110, amp: 22, period: 22, noise: 1.0, spike: 6 },
-};
-
-function createDummyState() {
-    const start = Date.now();
-    const stepMs = 3000;
-    const historyLen = 40;
-
-    const sensors = [];
-
-    PARTS.forEach((part) => {
-        const count = PART_SENSOR_COUNT[part] ?? 2;
-        for (let sid = 1; sid <= count; sid++) {
-            DUMMY_TYPES.forEach((type) => {
-                sensors.push({
-                    type,
-                    part,
-                    locName: BACKEND_LOC_NAME[part],
-                    externalId: sid,
-                    phase: Math.random() * Math.PI * 2,
-                    history: [],
-                });
-            });
-        }
-    });
-
-    sensors.forEach((s) => {
-        for (let i = historyLen - 1; i >= 0; i--) {
-            const ts = start - i * stepMs;
-            const v = dummyValueAt(s, ts, start);
-            s.history.push({ ts, v });
-        }
-    });
-
-    return { start, stepMs, historyLen, sensors };
-}
-
-function dummyValueAt(sensor, ts, start) {
-    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.humidity;
-    const t = (ts - start) / 1000;
-    const noise = (Math.random() * 2 - 1) * cfg.noise;
-    let v = cfg.base + cfg.amp * Math.sin(t / cfg.period + sensor.phase) + noise;
-
-    if (Math.random() < 0.06) v += cfg.spike;
-
-    return Math.round(v * 100) / 100;
-}
-
-function generateDummyReadings(state) {
-    const now = Date.now();
-
-    state.sensors.forEach((s) => {
-        const v = dummyValueAt(s, now, state.start);
-        s.history.push({ ts: now, v });
-        while (s.history.length > state.historyLen) s.history.shift();
-    });
-    const readings = [];
-    state.sensors.forEach((s) => {
-        s.history.forEach((p) => {
-            readings.push({
-                timestamp: new Date(p.ts).toISOString(),
-                value: p.v,
-                sensor: {
-                    location: { name: s.locName },
-                    sensorType: { name: s.type },
-                    externalId: s.externalId,
-                },
-            });
-        });
-    });
-
-    return readings;
-}
-
 export default function DetailPage() {
-    const dummyRef = useRef(null);
     const { sensorKey } = useParams();
     const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
     const { Icon } = meta;
@@ -362,16 +248,9 @@ export default function DetailPage() {
 
         const fetchData = async () => {
             try {
-                let readings = [];
-
-                if (USE_DUMMY) {
-                    if (!dummyRef.current) dummyRef.current = createDummyState();
-                    readings = generateDummyReadings(dummyRef.current);
-                } else {
-                    const res = await fetch(`${API_BASE}/sensor-reading`);
-                    if (!res.ok) throw new Error("Gagal ambil data");
-                    readings = await res.json();
-                }
+                const res = await fetch(`${API_BASE}/sensor-reading`);
+                if (!res.ok) throw new Error("Gagal ambil data");
+                const readings = await res.json();
 
                 const data = initShape();
 
@@ -389,17 +268,23 @@ export default function DetailPage() {
                     if (frontendType !== sensorKey) return;
                     if (!Number.isFinite(sensorNum)) return;
                     if (value == null || !Number.isFinite(value)) return;
+
                     if (!data[frontendLoc]?.series?.[sensorNum]) return;
 
                     const ts = new Date(r.timestamp).getTime();
-                    data[frontendLoc].series[sensorNum].push({ ts, v: value });
+
+                    data[frontendLoc].series[sensorNum].push({
+                        ts,
+                        v: value,
+                    });
+
                     data[frontendLoc].current[sensorNum] = value;
                 });
 
                 setSensorData(data);
                 setLoading(false);
             } catch (err) {
-                console.error("Error fetching:", err);
+                console.error("Error fetching ", err);
                 setLoading(false);
             }
         };
@@ -408,7 +293,6 @@ export default function DetailPage() {
         const interval = setInterval(fetchData, 3000);
         return () => clearInterval(interval);
     }, [sensorKey]);
-
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
 
@@ -525,7 +409,7 @@ export default function DetailPage() {
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
-                            <div className="w-full h-[320px]">
+                            <div className="flex-1 min-h-[220px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={coloredSeries}>
                                         <CartesianGrid strokeOpacity={0.15} />
@@ -545,17 +429,19 @@ export default function DetailPage() {
                                             }
                                         />
 
-                                        <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="6 4">
-                                            <Label
-                                                value={`Warning: ${threshold} ${meta.unit}`}
-                                                position="insideLeft"
-                                                dx={8}
-                                                dy={-8}
-                                                fill="#ef4444"
-                                                fontSize={10}
-                                            />
-                                        </ReferenceLine>
+                                        {/* garis batas */}
+                                        <ReferenceLine
+                                            y={threshold}
+                                            stroke="#ef4444"
+                                            strokeDasharray="6 4"
+                                            label={{
+                                                value: `Limit: ${threshold} ${meta.unit}`,
+                                                position: "insideTopRight",
+                                                fontSize: 10,
+                                            }}
+                                        />
 
+                                        {/* bagian <= threshold (normal/hijau) */}
                                         <Line
                                             type="monotone"
                                             dataKey="below"
@@ -566,6 +452,7 @@ export default function DetailPage() {
                                             isAnimationActive={false}
                                         />
 
+                                        {/* bagian > threshold (merah) */}
                                         <Line
                                             type="monotone"
                                             dataKey="above"
@@ -594,7 +481,6 @@ export default function DetailPage() {
                                     unit={meta.unit}
                                     count={PART_SENSOR_COUNT[id] ?? 2}
                                     active={activePart === id}
-                                    threshold={threshold}
                                     onClick={() => setActivePart(id)}
                                 />
                             </div>

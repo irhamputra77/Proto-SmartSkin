@@ -1,29 +1,159 @@
 // LandingPage.jsx (Responsive)
 import { Link } from "react-router-dom";
-import { User, Shield, Activity, BarChart3, FileText } from "lucide-react";
+import { Shield, Activity, BarChart3, FileText } from "lucide-react";
+import { Mail, Phone, MapPin, Linkedin, Instagram } from "lucide-react";
 
-const BG = "#F1F1F1";
+const BG = "#e9eef3";
 
 const neoLightShadow = `
-  -15px -15px 15px rgba(255,255,255,0.5),
-  15px 15px 15px rgba(209,214,230,1)
+  -6px -6px 6px rgba(255,255,255,0.5),
+  6px 6px 6px rgba(209,214,230,1)
 `;
 
 const neoInsetShadow = `
-  inset -10px -10px 20px rgba(255,255,255,0.9),
-  inset 10px 10px 20px rgba(209,214,230,0.9)
+  inset -6px -6px 10px rgba(255,255,255,0.9),
+  inset 6px 6px 10px rgba(209,214,230,0.9)
 `;
 
-function Frame1440({ children }) {
+function PcbSideFX({ src = "/pcb_left_tile_v3.png" }) {
+    const BG_RGB = "233,238,243";
 
     return (
-        <div className="w-full flex justify-center" style={{ backgroundColor: BG }}>
-            <div className="w-full max-w-[1440px]" style={{ backgroundColor: BG }}>
+        <>
+            <style>{`
+        .pcbfx {
+          --pcb-side-w: clamp(200px, 22vw, 360px);
+          --pcb-bleed: 18px;
+          --pcb-opacity: 0.85;
+          --pcb-fade: clamp(90px, 12vw, 180px);
+          --pcb-size: 512px 512px;
+          --pcb-solid: 60%;
+          z-index: 0; /* di atas konten */
+        }
+
+        /* MOBILE: kecilin sisi supaya tidak overlap */
+        @media (max-width: 640px) {
+          .pcbfx {
+            --pcb-side-w: clamp(90px, 26vw, 140px);
+            --pcb-bleed: 10px;
+            --pcb-opacity: 0.42;          /* lebih halus di mobile */
+            --pcb-fade: clamp(90px, 26vw, 160px); /* fade lebih lebar biar gak patah */
+            --pcb-size: 680px 680px;      /* bikin pattern lebih jarang */
+            --pcb-solid: 42%;
+          }
+        }
+      `}</style>
+
+            <div
+                aria-hidden
+                className="pcbfx pointer-events-none absolute inset-0 overflow-hidden"
+            >
+                {/* LEFT */}
+                <div
+                    className="absolute top-0 bottom-0"
+                    style={{
+                        left: "calc(0px - var(--pcb-bleed))",
+                        width: "calc(var(--pcb-side-w) + var(--pcb-bleed))",
+                        opacity: "var(--pcb-opacity)",
+                        WebkitMaskImage: `linear-gradient(to right,
+                                          rgba(0,0,0,1) 0%,
+                                          rgba(0,0,0,1) var(--pcb-solid),
+                                          rgba(0,0,0,0) 100%)`,
+                        maskImage: `linear-gradient(to right,
+                                    rgba(0,0,0,1) 0%,
+                                    rgba(0,0,0,1) var(--pcb-solid),
+                                    rgba(0,0,0,0) 100%)`,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            backgroundImage: `url("${src}")`,
+                            backgroundRepeat: "repeat-y",
+                            backgroundSize: "var(--pcb-size)",
+                            backgroundPosition: "left top",
+                            filter: "contrast(1.2) saturate(1.02)",
+                        }}
+                    />
+
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            width: "var(--pcb-fade)",
+                            background: `linear-gradient(to right,
+                rgba(${BG_RGB}, 0) 0%,
+                rgba(${BG_RGB}, 1) 100%)`,
+                        }}
+                    />
+                </div>
+
+                {/* RIGHT */}
+                <div
+                    className="absolute top-0 bottom-0"
+                    style={{
+                        right: "calc(0px - var(--pcb-bleed))",
+                        width: "calc(var(--pcb-side-w) + var(--pcb-bleed))",
+                        opacity: "var(--pcb-opacity)",
+                        WebkitMaskImage: `linear-gradient(to left,
+                                            rgba(0,0,0,1) 0%,
+                                            rgba(0,0,0,1) var(--pcb-solid),
+                                            rgba(0,0,0,0) 100%)`,
+                        maskImage: `linear-gradient(to left,
+                                    rgba(0,0,0,1) 0%,
+                                    rgba(0,0,0,1) var(--pcb-solid),
+                                    rgba(0,0,0,0) 100%)`,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            backgroundImage: `url("${src}")`,
+                            backgroundRepeat: "repeat-y",
+                            backgroundSize: "var(--pcb-size)",
+                            backgroundPosition: "left top",
+                            transform: "scaleX(-1)",
+                            transformOrigin: "center",
+                            filter: "contrast(1.2) saturate(1.02)",
+                        }}
+                    />
+
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            width: "var(--pcb-fade)",
+                            background: `linear-gradient(to right,
+                rgba(${BG_RGB}, 1) 0%,
+                rgba(${BG_RGB}, 0) 100%)`,
+                        }}
+                    />
+                </div>
+            </div>
+        </>
+    );
+}
+
+
+
+
+
+function Frame1440({ children }) {
+    return (
+        <div className="w-full flex justify-center">
+            <div className="w-full max-w-[1440px]">
                 {children}
             </div>
         </div>
     );
 }
+
 
 function NeoSurface({ children, style = {}, className = "" }) {
     return (
@@ -104,243 +234,338 @@ function FeatureCard({ Icon, title, desc }) {
 
 export default function LandingPage() {
     return (
-        <div style={{ backgroundColor: BG }}>
-            <Frame1440>
-                {/* NAVBAR */}
-                <header
-                    className="w-full"
-                    style={{
-                        background: BG,
-                        boxShadow: "0px 18px 30px rgba(15,23,42,0.10)",
-                    }}
-                >
-                    <div className="h-[72px] sm:h-[88px] px-4 sm:px-8 lg:px-20 flex items-center">
-                        <div className="flex items-center justify-between w-full gap-4">
-                            {/* logo kiri */}
-                            <img
-                                src="/public/logo stas rg baru besar.png"
-                                alt="STAS RG"
-                                className="h-7 sm:h-[34px] w-auto shrink-0"
-                                draggable={false}
-                            />
+        <div style={{ backgroundColor: BG, minHeight: "100dvh", position: "relative", overflowX: "hidden" }}>
+            {/* NAVBAR */}
+            <header
+                className="w-full"
+                style={{
+                    background: BG,
+                    boxShadow: "0px 18px 30px rgba(15,23,42,0.10)",
+                }}
+            >
 
-                            {/* menu kanan */}
-                            <div className="flex items-center gap-3 sm:gap-5 flex-wrap justify-end">
-                                <NavPill href="#about">About</NavPill>
-                                <NavPill href="#contact">Contact</NavPill>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                {/* HERO */}
-                <section
-                    className="px-4 sm:px-8 lg:px-20 pt-10 sm:pt-12 pb-16 sm:pb-20"
-                    style={{ background: BG }}
-                >
-                    <div
-                        className="
-      mx-auto w-full max-w-[1291px]
-      relative overflow-hidden
-      aspect-[1291/726]
-      min-h-[520px] sm:min-h-0
-    "
-                    >
-                        {/* text SMART SKIN */}
-                        <div
-                            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                 z-[4] select-none pointer-events-none text-center whitespace-normal sm:whitespace-nowrap"
-                            style={{
-                                fontFamily: "Nunito Sans, sans-serif",
-                                fontWeight: 700,
-                                fontSize: "clamp(56px, 11vw, 210px)",
-                                background: "linear-gradient(180deg, #F8F8FC 0%, #E1E2EB 100%)",
-                                WebkitBackgroundClip: "text",
-                                color: "transparent",
-                                filter:
-                                    "drop-shadow(-15px -15px 15px rgba(255,255,255,0.5)) drop-shadow(15px 15px 15px rgba(209,214,230,1))",
-                                userSelect: "none",
-                            }}
-                        >
-                            SMART&nbsp;SKIN
-                        </div>
-
-                        {/* mannequin */}
+                <div className="mx-auto w-full max-w-[1440px] h-[72px] sm:h-[88px] px-4 sm:px-8 lg:px-20 flex items-center">
+                    <div className="flex items-center justify-between w-full gap-4">
                         <img
-                            src="/manequin.png"
-                            alt="Mannequin Smart Skin"
+                            src="/public/logo stas rg baru besar.png"
+                            alt="STAS RG"
+                            className="h-7 sm:h-[34px] w-auto shrink-0"
                             draggable={false}
-                            className="absolute inset-0 m-auto w-full h-full object-contain opacity-45 z-[2]"
                         />
 
-
-                        <div
-                            className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
-                            style={{
-                                height: "clamp(180px, 32vw, 320px)",
-                                background:
-                                    "linear-gradient(to bottom, rgba(241,241,241,0) 0%, rgba(241,241,241,0.7) 55%, rgba(241,241,241,1) 92%)",
-                            }}
-                        />
-
-                        <div
-                            className="absolute left-0 right-0 bottom-0 z-[3] pointer-events-none"
-                            style={{
-                                height: "clamp(140px, 26vw, 260px)",
-                                background:
-                                    "radial-gradient(ellipse at center, rgba(241,241,241,0) 0%, rgba(241,241,241,0.85) 70%, rgba(241,241,241,1) 100%)",
-                                filter: "blur(10px)",
-                                opacity: 0.95,
-                            }}
-                        />
-
-                        {/* caption + button */}
-                        <div
-                            className="absolute left-1/2 -translate-x-1/2 z-[4] px-4 w-full flex flex-col items-center"
-                            style={{ bottom: "clamp(44px, 10vw, 120px)" }}
-                        >
-                            <p className="text-sm sm:text-base text-slate-500 text-center mb-5 sm:mb-6">
-                                Analisis dampak lingkungan medan tempur terhadap prajurit
-                            </p>
-
-                            <Link
-                                to="/dashboard"
-                                className="inline-flex items-center justify-center rounded-2xl bg-[#1CD400]
-                   text-white font-bold text-sm sm:text-base px-10 py-4 sm:px-12 sm:py-5"
-                                style={{
-                                    textDecoration: "none",
-                                    boxShadow:
-                                        "-15px -15px 15px rgba(255,255,255,0.5), 15px 15px 15px rgba(0,0,0,0.15)",
-                                }}
-                            >
-                                Go To Dashboard
-                            </Link>
+                        <div className="flex items-center gap-3 sm:gap-5 flex-wrap justify-end">
+                            <NavPill href="#about">About</NavPill>
+                            <NavPill href="#contact">Contact</NavPill>
                         </div>
                     </div>
-                </section>
+                </div>
+            </header>
 
-
-                {/* ABOUT */}
-                <section
-                    id="about"
-                    className="px-4 sm:px-8 lg:px-20 pt-14 sm:pt-16"
-                    style={{ background: BG }}
-                >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 items-start">
-                        {/* kiri */}
-                        <div>
-                            <div className="flex items-center gap-3 text-slate-400 text-sm">
-                                <div
-                                    className="flex items-center justify-center"
-                                    style={{
-                                        width: 34,
-                                        height: 34,
-                                        borderRadius: 12,
-                                        background: BG,
-                                        boxShadow: neoLightShadow,
-                                    }}
-                                >
-                                    <User size={16} className="text-slate-500" />
-                                </div>
-                                <div className="font-bold">About Page</div>
-                            </div>
-
-                            <h2
-                                className="mt-4 sm:mt-5 font-extrabold text-slate-600 leading-tight"
-                                style={{ fontSize: "clamp(28px, 3vw, 40px)" }}
-                            >
-                                Mannequin With <span style={{ color: "#1CD400" }}>Smart Skin</span>
-                                <br />
-                                for Battlefield Simulation
-                            </h2>
-
+            <main style={{ position: "relative" }}>
+                <PcbSideFX src="/pcb_left_tile_v3.png" />
+                <div style={{ position: "relative", zIndex: 1 }}>
+                    <Frame1440>
+                        {/* HERO */}
+                        <section className="px-4 sm:px-8 lg:px-20 pt-10 sm:pt-12 pb-12 md:pb-14 lg:pb-20">
                             <div
-                                className="mt-4 h-[2px] rounded-full"
-                                style={{
-                                    width: "min(320px, 70vw)",
-                                    background: "rgba(148,163,184,0.35)",
-                                }}
-                            />
-
-                            <NeoInset className="mt-5 sm:mt-6 p-4 sm:p-[18px] w-full max-w-[520px]">
-                                <p className="text-xs sm:text-[13px] leading-[18px] text-slate-400">
-                                    Smart Skin mengubah permukaan tubuh mannequin menjadi jaringan
-                                    sensor. Setiap benturan, tekanan, dan getaran terekam sebagai
-                                    data digital, sehingga pelatih dapat menilai risiko cedera
-                                    prajurit secara aman dan terukur.
-                                </p>
-                            </NeoInset>
-                        </div>
-
-                        {/* kanan: frame gambar */}
-                        <div className="flex justify-start lg:justify-end">
-                            <NeoSurface className="w-full max-w-[560px] h-[220px] sm:h-[260px] overflow-hidden relative">
-                                {/* placeholder (di belakang) */}
-                                <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm">
-                                    About Image Frame
+                                className="
+                                        mx-auto w-full max-w-[1291px]
+                                        relative overflow-visible
+                                        aspect-1291/726
+                                        min-h-[520px] sm:min-h-[560px] md:min-h-[520px]
+                                        "
+                            >
+                                {/* TEXT SMART SKIN */}
+                                <div
+                                    className="
+                                                absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                                                z-4 pointer-events-none select-none
+                                                w-full max-w-[min(96vw,1200px)]
+                                                text-center overflow-visible
+                                                "
+                                >
+                                    <span
+                                        className="
+                                                inline-block overflow-visible whitespace-nowrap leading-[1.02]
+                                                px-[22px] py-5
+                                                sm:px-14 sm:py-[34px]
+                                                md:px-10 md:py-[26px]
+                                                text-[clamp(44px,12vw,92px)]
+                                                sm:text-[clamp(56px,9.5vw,170px)]
+                                                md:text-[clamp(48px,9.2vw,120px)]
+                                                tracking-[0.01em] sm:tracking-[0.02em] md:tracking-[0.015em]
+                                                "
+                                        style={{
+                                            fontFamily: "Nunito Sans, sans-serif",
+                                            fontWeight: 800,
+                                            color: BG,
+                                            textShadow: `
+                                                -1.5px -1.5px 0 rgba(255,255,255,0.75),
+                                                1.5px  1.5px 0 rgba(165,175,195,0.20),
+                                                -10px -10px 18px rgba(255,255,255,0.80),
+                                                10px  10px 18px rgba(155,165,185,0.35)
+                                            `,
+                                        }}
+                                    >
+                                        SMART&nbsp;SKIN
+                                    </span>
                                 </div>
 
+                                {/* MANNEQUIN */}
                                 <img
-                                    src="/about-image.png"
-                                    alt="About Illustration"
-                                    className="absolute inset-0 w-full h-full object-cover"
+                                    src="/manequin.png"
+                                    alt="Mannequin Smart Skin"
                                     draggable={false}
-                                    onError={(e) => {
-                                        e.currentTarget.style.display = "none";
+                                    className="
+                                                absolute inset-0 m-auto w-full h-full object-contain z-2
+                                                opacity-[0.42] sm:opacity-[0.45]
+                                            "
+                                />
+
+                                {/* BOTTOM FADES */}
+                                <div
+                                    className="absolute left-0 right-0 bottom-0 z-3 pointer-events-none"
+                                    style={{
+                                        height: "clamp(170px, 30vw, 300px)",
+                                        background:
+                                            "linear-gradient(to bottom, rgba(233,238,243,0) 0%, rgba(233,238,243,0.75) 55%, rgba(233,238,243,1) 92%)",
                                     }}
                                 />
-                            </NeoSurface>
-                        </div>
-                    </div>
-                </section>
+                                <div
+                                    className="absolute left-0 right-0 bottom-0 z-3 pointer-events-none"
+                                    style={{
+                                        height: "clamp(130px, 24vw, 240px)",
+                                        background:
+                                            "radial-gradient(ellipse at center, rgba(233,238,243,0) 0%, rgba(233,238,243,0.85) 70%, rgba(233,238,243,1) 100%)",
+                                        filter: "blur(10px)",
+                                        opacity: 0.95,
+                                    }}
+                                />
 
-                {/* FEATURE */}
-                <section
-                    className="px-4 sm:px-8 lg:px-20 pt-16 sm:pt-20"
-                    style={{ background: BG }}
-                >
-                    <div className="text-center font-extrabold text-slate-500 text-lg sm:text-[22px]">
-                        FEATURE
-                    </div>
+                                {/* CAPTION + BUTTON */}
+                                <div
+                                    className="
+                                                absolute left-1/2 -translate-x-1/2 z-4
+                                                w-full px-4 flex flex-col items-center
+                                                bottom-[46px]
+                                                sm:bottom-[clamp(40px,7vw,110px)]
+                                                md:bottom-[clamp(34px,6.5vw,90px)]
+                                            "
+                                >
+                                    <p
+                                        className="
+                                                    text-sm sm:text-base text-slate-500 text-center
+                                                    mb-5 sm:mb-6
+                                                    max-w-[92vw] sm:max-w-[680px] md:max-w-[620px]
+                                                    "
+                                        style={{ textShadow: "0 1px 0 rgba(255,255,255,0.65)" }}
+                                    >
+                                        Analisis dampak lingkungan medan tempur terhadap prajurit
+                                    </p>
 
-                    <div className="mt-6 sm:mt-7 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
-                        <FeatureCard
-                            Icon={Shield}
-                            title="Save Simulation"
-                            desc="Uji berbagai skenario latihan intensif tanpa mengekspos prajurit pada risiko langsung, dari guncangan kendaraan hingga ledakan terkendali."
-                        />
-                        <FeatureCard
-                            Icon={Activity}
-                            title="Multi-Zone Body Sensor"
-                            desc="Titik sensor ditempatkan di kepala, leher, dada, dan persendian untuk memetakan distribusi beban dan potensi cedera secara rinci."
-                        />
-                        <FeatureCard
-                            Icon={BarChart3}
-                            title="Intuitive Visualization"
-                            desc="Data dikirim ke dashboard Smart Skin dan divisualisasikan sebagai heatmap, grafik waktu, serta indikator risiko di tiap bagian tubuh."
-                        />
-                        <FeatureCard
-                            Icon={FileText}
-                            title="Data-based decisions"
-                            desc="Hasil simulasi terdokumentasi rapi sehingga protokol pelatihan dapat dibandingkan, dievaluasi, dan disempurnakan secara berkelanjutan."
-                        />
-                    </div>
-                </section>
+                                    <Link
+                                        to="/dashboard"
+                                        className="
+                                                    inline-flex items-center justify-center rounded-2xl
+                                                    bg-[#1CD400] text-white font-bold
+                                                    text-sm sm:text-base
+                                                    px-10 py-4 sm:px-12 sm:py-5
+                                                    "
+                                        style={{
+                                            textDecoration: "none",
+                                            boxShadow:
+                                                "-15px -15px 15px rgba(255,255,255,0.5), 15px 15px 15px rgba(0,0,0,0.15)",
+                                        }}
+                                    >
+                                        Go To Dashboard
+                                    </Link>
+                                </div>
+                            </div>
+                        </section>
 
-                {/* FOOTER */}
-                <footer
-                    id="contact"
-                    className="px-4 sm:px-8 lg:px-20 pt-16 sm:pt-20 pb-10"
-                    style={{ background: BG }}
-                >
-                    <img
-                        src="/public/logo stas rg baru besar.png"
-                        alt="STAS RG"
-                        className="h-7 sm:h-[34px] w-auto"
-                        draggable={false}
-                    />
-                </footer>
-            </Frame1440>
+
+                        {/* ABOUT */}
+                        <section id="about" className="px-4 sm:px-8 lg:px-20 pt-14 sm:pt-16">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 items-start">
+                                <div>
+                                    <div className="flex items-center gap-3 text-slate-500 text-[22px] font-extrabold">
+                                        <div className="font-bold text-xl">About Page</div>
+                                    </div>
+
+                                    <h2
+                                        className="mt-4 sm:mt-5 font-extrabold text-slate-600 leading-tight"
+                                        style={{ fontSize: "clamp(28px, 3vw, 40px)" }}
+                                    >
+                                        Mannequin With <span style={{ color: "#1CD400" }}>Smart Skin</span>
+                                        <br />
+                                        for Battlefield Simulation
+                                    </h2>
+
+                                    <div
+                                        className="mt-4 h-0.5 rounded-full"
+                                        style={{
+                                            width: "min(320px, 70vw)",
+                                            background: "rgba(148,163,184,0.35)",
+                                        }}
+                                    />
+
+                                    <NeoInset className="mt-5 sm:mt-6 p-4 sm:p-[18px] w-full max-w-[520px]">
+                                        <p className="text-xs sm:text-[13px] leading-[18px] text-slate-400">
+                                            Smart Skin mengubah permukaan tubuh mannequin menjadi jaringan sensor. Setiap benturan,
+                                            tekanan, dan getaran terekam sebagai data digital, sehingga pelatih dapat menilai risiko
+                                            cedera prajurit secara aman dan terukur.
+                                        </p>
+                                    </NeoInset>
+                                </div>
+
+                                <div className="flex justify-start lg:justify-end">
+                                    <NeoSurface className="w-full max-w-[560px] h-60 sm:h-[280px] overflow-hidden relative">
+                                        <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm">
+                                            About Image Frame
+                                        </div>
+
+                                        <img
+                                            src="/about-image.png"
+                                            alt="About Illustration"
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            draggable={false}
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = "none";
+                                            }}
+                                        />
+                                    </NeoSurface>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* FEATURE */}
+                        <section className="px-4 sm:px-8 lg:px-20 pt-16 sm:pt-20">
+                            <div className="text-center font-extrabold text-slate-500 text-lg sm:text-[22px]">
+                                FEATURE
+                            </div>
+
+                            <div className="mt-6 sm:mt-7 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
+                                <FeatureCard
+                                    Icon={Shield}
+                                    title="Save Simulation"
+                                    desc="Uji berbagai skenario latihan intensif tanpa mengekspos prajurit pada risiko langsung, dari guncangan kendaraan hingga ledakan terkendali."
+                                />
+                                <FeatureCard
+                                    Icon={Activity}
+                                    title="Multi-Zone Body Sensor"
+                                    desc="Titik sensor ditempatkan di kepala, leher, dada, dan persendian untuk memetakan distribusi beban dan potensi cedera secara rinci."
+                                />
+                                <FeatureCard
+                                    Icon={BarChart3}
+                                    title="Intuitive Visualization"
+                                    desc="Data dikirim ke dashboard Smart Skin dan divisualisasikan sebagai heatmap, grafik waktu, serta indikator risiko di tiap bagian tubuh."
+                                />
+                                <FeatureCard
+                                    Icon={FileText}
+                                    title="Data-based decisions"
+                                    desc="Hasil simulasi terdokumentasi rapi sehingga protokol pelatihan dapat dibandingkan, dievaluasi, dan disempurnakan secara berkelanjutan."
+                                />
+                            </div>
+                        </section>
+
+                        {/* FOOTER */}
+                        <footer className="mt-24 border-t border-white/60" style={{ backgroundColor: BG }}>
+                            <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8 lg:px-20 py-10">
+                                <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <img
+                                                src="/public/logo stas rg baru besar.png"
+                                                alt="STAS RG"
+                                                className="h-14 w-auto"
+                                                draggable={false}
+                                            />
+                                        </div>
+                                        <p className="text-sm leading-relaxed text-slate-600">
+                                            Smart Skin — Analisis dampak lingkungan medan tempur terhadap prajurit.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="text-sm font-semibold text-slate-700">Contact STAS</div>
+
+                                        <ul className="space-y-3 text-sm text-slate-600">
+                                            <li className="flex items-start gap-3">
+                                                <Mail className="mt-0.5 h-4 w-4 text-slate-500 shrink-0" />
+                                                <div className="flex gap-2">
+                                                    <span className="w-20 shrink-0 text-slate-500">Email</span>
+                                                    <a
+                                                        className="hover:text-slate-800 underline-offset-4 hover:underline"
+                                                        href="mailto:contact@stasrg.com"
+                                                    >
+                                                        stasrg@telkomuniversity.ac.id
+                                                    </a>
+                                                </div>
+                                            </li>
+
+                                            <li className="flex items-start gap-3">
+                                                <Phone className="mt-0.5 h-4 w-4 text-slate-500 shrink-0" />
+                                                <div className="flex gap-2">
+                                                    <span className="w-20 shrink-0 text-slate-500">Telp</span>
+                                                    <a
+                                                        className="hover:text-slate-800 underline-offset-4 hover:underline"
+                                                        href="tel:+6281315143774"
+                                                    >
+                                                        +62 813-1514-3774
+                                                    </a>
+                                                </div>
+                                            </li>
+
+                                            <li className="flex items-start gap-3">
+                                                <MapPin className="mt-0.5 h-4 w-4 text-slate-500 shrink-0" />
+                                                <div className="flex gap-2">
+                                                    <span className="w-20 shrink-0 text-slate-500">Alamat</span>
+                                                    <span className="leading-relaxed">
+                                                        Jl. Telekomunikasi No.1, Sukapura, Kec. Dayeuhkolot, Kabupaten Bandung, Jawa Barat 40257
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="text-sm font-semibold text-slate-700">Social</div>
+
+                                        <div className="flex flex-col gap-3 text-sm">
+                                            <a
+                                                className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-800 underline-offset-4 hover:underline"
+                                                href="https://www.linkedin.com/company/coe-stas-rg/"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <Linkedin className="h-4 w-4 text-slate-500" />
+                                                Center of Excellence STAS-RG
+                                            </a>
+
+                                            <a
+                                                className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-800 underline-offset-4 hover:underline"
+                                                href="https://www.instagram.com/stas.rg/"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <Instagram className="h-4 w-4 text-slate-500" />
+                                                @stas.rg
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-10 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-xs text-slate-500">
+                                        © {new Date().getFullYear()} STAS RG. All rights reserved.
+                                    </div>
+                                </div>
+                            </div>
+                        </footer>
+                    </Frame1440>
+                </div>
+
+            </main>
         </div>
     );
 }
