@@ -76,16 +76,17 @@ export default function DashboardPage() {
                     vib: []
                 };
 
-                readings.forEach(r => {
-                    const backendType = r.sensor.sensorType.name;
-                    const sensorKey = Object.keys(SENSOR_TYPES).find(key =>
-                        SENSOR_TYPES[key].backendType === backendType
-                    );
+                readings.forEach((r) => {
+                    const backendType = r?.sensor?.sensorType?.name;
+                    const meta = SENSOR_TYPES.find((t) => t.backendType === backendType);
+                    const key = meta?.key;
 
-                    if (sensorKey && r.value != null) {
-                        sensorData[sensorKey].push(parseFloat(r.value));
-                    }
+                    const value = Number(r?.value);
+                    if (!key || !Number.isFinite(value)) return;
+
+                    sensorData[key].push(value);
                 });
+
 
                 const newSummary = {};
                 for (const key of Object.keys(sensorData)) {
