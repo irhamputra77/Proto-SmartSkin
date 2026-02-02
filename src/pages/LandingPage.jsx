@@ -154,7 +154,7 @@ export default function LandingPage() {
                                 fontFamily: "Nunito Sans, sans-serif",
                                 fontWeight: 700,
                                 fontSize: "clamp(56px, 11vw, 210px)",
-                                background: "linear-gradient(180deg, #F8F8FC 0%, #E1E2EB 100%)",
+                                background: "linear-gradient(180deg, #334155 0%, #848b95 100%)",
                                 WebkitBackgroundClip: "text",
                                 color: "transparent",
                                 filter:

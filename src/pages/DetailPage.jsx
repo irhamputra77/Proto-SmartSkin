@@ -30,12 +30,13 @@ const PART_LABEL = {
 
 const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
+// PERBAIKAN: Sesuaikan jumlah sensor per lokasi
 const PART_SENSOR_COUNT = {
     "left-arm": 2,
     "right-arm": 2,
-    "left-leg": 2,
-    "right-leg": 2,
-    back: 4,
+    "left-leg": 3,   // Paha kiri: 3 sensor
+    "right-leg": 3,  // Paha kanan: 3 sensor
+    back: 4,         // Punggung: 4 sensor
 };
 
 const LOCATION_MAP_BACKEND = {
@@ -160,7 +161,7 @@ export default function DetailPage() {
     }, [activePart]);
 
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
 
         const initShape = () => {
             const data = {};
@@ -223,6 +224,10 @@ export default function DetailPage() {
                     if (!Number.isFinite(sensorNum)) return;
                     if (value == null || !Number.isFinite(value)) return;
 
+                    // PERBAIKAN: Pastikan sensorNum tidak melebihi batas
+                    const maxSensors = PART_SENSOR_COUNT[frontendLoc] || 2;
+                    if (sensorNum < 1 || sensorNum > maxSensors) return;
+
                     if (!data[frontendLoc]?.series?.[sensorNum]) return;
 
                     data[frontendLoc].series[sensorNum].push({
@@ -234,17 +239,6 @@ export default function DetailPage() {
                     });
                     data[frontendLoc].current[sensorNum] = value;
                 });
-
-                // Urutkan data berdasarkan waktu
-                for (const part of PARTS) {
-                  const sensorCount = SENSOR_COUNT[part];
-                  for (let i = 1; i <= sensorCount; i++) {
-                    const key = `sensor${i}`;
-                    if (data[part][key]?.length > 0) {
-                      data[part][key].sort((a, b) => a.rawTime - b.rawTime);
-                    }
-                  }
-                }
 
                 setSensorData(data);
                 setLoading(false);
