@@ -64,6 +64,65 @@ function fmt(v) {
     return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
+
+const MS_1H = 60 * 60 * 1000;
+const MS_24H = 24 * MS_1H;
+
+function startOfDayLocal(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+}
+
+function buildHourlyTicksForDay(dayStart) {
+    // 24 tick: 00:00 s/d 23:00
+    return Array.from({ length: 24 }, (_, i) => dayStart + i * MS_1H);
+}
+
+function DotWithValue(props) {
+    const { cx, cy, value, stroke } = props;
+    if (value == null || cx == null || cy == null) return null;
+
+    const color = stroke || "#334155";
+
+    return (
+        <g>
+            <circle cx={cx} cy={cy} r={3} fill={color} stroke="#ffffff" strokeWidth={1} />
+            <text
+                x={cx}
+                y={cy - 10}
+                textAnchor="middle"
+                fontSize={10}
+                fill="#334155"
+                style={{ pointerEvents: "none" }}
+            >
+                {fmt(value)}
+            </text>
+        </g>
+    );
+}
+
+
+
+function startOfHourLocal(ts) {
+    const d = new Date(ts);
+    d.setMinutes(0, 0, 0);
+    return d.getTime();
+}
+
+// Tick setiap 1 jam pada rentang [start,end]
+function buildHourlyTicks(start, end) {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+
+    const ticks = [];
+    let t = startOfHourLocal(start);
+    if (t < start) t += MS_1H;
+
+    for (; t <= end; t += MS_1H) ticks.push(t);
+    return ticks;
+}
+
+
 function SensorTabs({ count, activeId, onChange }) {
     const ids = Array.from({ length: count }, (_, i) => i + 1);
 
@@ -216,7 +275,7 @@ function buildThresholdSeries(series, threshold) {
 }
 
 {/*Ubah ke False jika ingin matikan Data Dummy*/ }
-const USE_DUMMY = false;
+const USE_DUMMY = true;
 
 const BACKEND_LOC_NAME = {
     "right-arm": "right arm",
@@ -427,6 +486,64 @@ export default function DetailPage() {
         return buildThresholdSeries(chartSeries, threshold);
     }, [chartSeries, threshold]);
 
+    // === Grafik per 24 jam (reset tiap ganti tanggal) ===
+    const { daySeries, baseXDomain, activeDayStart } = useMemo(() => {
+        const latestTs = coloredSeries.reduce(
+            (mx, p) => (Number.isFinite(p?.ts) ? Math.max(mx, p.ts) : mx),
+            0
+        );
+
+        const baseTs = latestTs || Date.now();
+        const dayStart = startOfDayLocal(baseTs);
+        const dayEnd = dayStart + MS_24H - 1;
+
+        const filtered = coloredSeries.filter(
+            (p) => Number.isFinite(p?.ts) && p.ts >= dayStart && p.ts <= dayEnd
+        );
+
+        return {
+            daySeries: filtered,
+            baseXDomain: [dayStart, dayEnd],
+            activeDayStart: dayStart,
+        };
+    }, [coloredSeries]);
+
+    const yBounds = useMemo(() => {
+        let mn = Infinity;
+        let mx = -Infinity;
+
+        for (const p of daySeries) {
+            const candidates = [];
+
+            const v = Number(p?.v);
+            if (Number.isFinite(v)) candidates.push(v);
+
+            const b = Number(p?.below);
+            if (Number.isFinite(b)) candidates.push(b);
+
+            const a = Number(p?.above);
+            if (Number.isFinite(a)) candidates.push(a);
+
+            for (const val of candidates) {
+                mn = Math.min(mn, val);
+                mx = Math.max(mx, val);
+            }
+        }
+
+        if (Number.isFinite(threshold)) {
+            mn = Math.min(mn, threshold);
+            mx = Math.max(mx, threshold);
+        }
+
+        if (!Number.isFinite(mn) || !Number.isFinite(mx)) return { min: 0, max: 100 };
+
+        const span = mx - mn;
+        const pad = span === 0 ? Math.max(1, Math.abs(mx) * 0.1) : span * 0.1;
+
+        return { min: mn - pad, max: mx + pad };
+    }, [daySeries, threshold]);
+
+    const hourTicks = useMemo(() => buildHourlyTicksForDay(activeDayStart), [activeDayStart]);
 
     return (
         <div className="min-h-dvh bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
@@ -526,25 +643,58 @@ export default function DetailPage() {
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
+
+
                             <div className="w-full h-[320px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={coloredSeries}>
+                                    <LineChart data={daySeries}>
                                         <CartesianGrid strokeOpacity={0.15} />
 
                                         <XAxis
                                             dataKey="ts"
+                                            type="number"
+                                            scale="time"
+                                            domain={baseXDomain}
+                                            ticks={hourTicks}
                                             tick={{ fontSize: 10 }}
+                                            interval={0}
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={52}
                                             tickFormatter={(ts) =>
-                                                new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                                                new Date(ts).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
                                             }
                                         />
-                                        <YAxis tick={{ fontSize: 10 }} />
+
+
+                                        <YAxis domain={[yBounds.min, yBounds.max]} tick={{ fontSize: 10 }} />
 
                                         <Tooltip
-                                            labelFormatter={(ts) =>
-                                                new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                                            }
+                                            content={({ active, payload, label }) => {
+                                                if (!active || !payload?.length) return null;
+
+                                                const p = payload.find((x) => x?.value != null) ?? payload[0];
+                                                const val = p?.value ?? p?.payload?.v;
+
+                                                return (
+                                                    <div className="rounded-xl bg-white/90 backdrop-blur border border-slate-200 px-3 py-2 shadow-sm">
+                                                        <div className="text-[11px] text-slate-600">
+                                                            {new Date(label).toLocaleString("id-ID", {
+                                                                day: "2-digit",
+                                                                month: "2-digit",
+                                                                year: "numeric",
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })}
+                                                        </div>
+                                                        <div className="mt-1 text-sm font-semibold text-slate-900 tabular-nums">
+                                                            {meta.label}: {fmt(val)} {meta.unit}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            }}
                                         />
+
 
                                         <ReferenceLine y={threshold} stroke="#ef4444" strokeDasharray="6 4">
                                             <Label
@@ -562,7 +712,7 @@ export default function DetailPage() {
                                             dataKey="below"
                                             strokeWidth={2}
                                             stroke={SENSOR_COLOR[activeSensorId] || "#10b981"}
-                                            dot={false}
+                                            dot={<DotWithValue />}
                                             connectNulls={false}
                                             isAnimationActive={false}
                                         />
@@ -572,11 +722,12 @@ export default function DetailPage() {
                                             dataKey="above"
                                             strokeWidth={2}
                                             stroke="#ef4444"
-                                            dot={false}
+                                            dot={<DotWithValue />}
                                             connectNulls={false}
                                             isAnimationActive={false}
                                         />
                                     </LineChart>
+
                                 </ResponsiveContainer>
 
                             </div>
