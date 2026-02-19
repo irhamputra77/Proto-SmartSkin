@@ -487,7 +487,7 @@ export default function LandingPage() {
                                     </div>
 
                                     <div className="space-y-3">
-                                        <div className="text-sm font-semibold text-slate-700">Contact STAS</div>
+                                        <div className="text-sm font-semibold text-slate-700">Contact STAS-RG</div>
 
                                         <ul className="space-y-3 text-sm text-slate-600">
                                             <li className="flex items-start gap-3">
