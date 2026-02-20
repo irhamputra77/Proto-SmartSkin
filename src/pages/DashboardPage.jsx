@@ -277,7 +277,7 @@ export default function DashboardPage() {
                         {/* logo kanan */}
                         <div className="neo-inset p-3 rounded-2xl shrink-0">
                             <img
-                                src="/public/logo stas rg baru besar.png"
+                                src="/public/logo.png"
                                 alt="STAS RG"
                                 className="h-10 sm:h-12 w-auto object-contain"
                                 draggable={false}

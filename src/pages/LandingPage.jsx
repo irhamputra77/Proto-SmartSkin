@@ -247,7 +247,7 @@ export default function LandingPage() {
                 <div className="mx-auto w-full max-w-[1440px] h-[72px] sm:h-[88px] px-4 sm:px-8 lg:px-20 flex items-center">
                     <div className="flex items-center justify-between w-full gap-4">
                         <img
-                            src="/public/logo stas rg baru besar.png"
+                            src="/public/Logo.png"
                             alt="STAS RG"
                             className="h-7 sm:h-[34px] w-auto shrink-0"
                             draggable={false}
