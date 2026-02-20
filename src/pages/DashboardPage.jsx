@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { Thermometer, Waves, Gauge, ChevronRight } from "lucide-react";
@@ -69,7 +69,7 @@ export default function DashboardPage() {
                 const res = await fetch(`${API_BASE}/sensor-reading`);
                 if (!res.ok) throw new Error('Gagal ambil data');
                 const readings = await res.json();
-                
+
 
                 const sensorData = {
                     temp: [],

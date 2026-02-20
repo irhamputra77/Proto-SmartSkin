@@ -19,8 +19,8 @@ import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 {/*Ubah Limit Disini*/ }
 const SENSOR_META = {
     temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 37 },
-    vib: { label: "Vibration", unit: "A", Icon: Waves, backendType: "vibration", limit: 2.5 },
-    press: { label: "Pressure", unit: "N", Icon: Gauge, backendType: "pressure", limit: 120 },
+    vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 2.5 },
+    press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 120 },
 };
 
 const PART_LABEL = {
@@ -32,12 +32,14 @@ const PART_LABEL = {
 };
 
 const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
+
+// PERBAIKAN: Sesuaikan jumlah sensor per lokasi
 const PART_SENSOR_COUNT = {
     "left-arm": 2,
     "right-arm": 2,
-    "left-leg": 3,
-    "right-leg": 3,
-    back: 4,
+    "left-leg": 3,   // Paha kiri: 3 sensor
+    "right-leg": 3,  // Paha kanan: 3 sensor
+    back: 4,         // Punggung: 4 sensor
 };
 
 const LOCATION_MAP_BACKEND = {
@@ -75,14 +77,77 @@ function buildHourTicksForDay(dayStart) {
 }
 
 const MS_10M = 10 * 60 * 1000;
-const MS_5M = 5 * 60 * 1000;
 function build10MinTicksForDay(dayStart) {
-    return Array.from({ length: 24 * 6 }, (_, i) => dayStart + (i + 1) * MS_10M);
+    // 00:00 s/d 23:50 (144 ticks)
+    return Array.from({ length: 24 * 6 }, (_, i) => dayStart + i * MS_10M);
 }
 
-function build5MinTicksForDay(dayStart) {
-    return Array.from({ length: 24 * 12 }, (_, i) => dayStart + i * MS_5M);
+function fmtHHmm(ts) {
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
 }
+
+function fmtHHmmss(ts) {
+    if (!Number.isFinite(ts)) return "";
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+}
+
+// Single-row axis: major ticks on the hour, minor ticks every 10 minutes
+function CombinedTimeTick({ x, y, payload }) {
+    const ts = payload?.value;
+    const d = new Date(ts);
+    const isHour = d.getMinutes() === 0;
+
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <line
+                x1={0}
+                x2={0}
+                y1={0}
+                y2={isHour ? 10 : 6}
+                stroke="#94a3b8"
+                strokeWidth={1}
+                opacity={isHour ? 0.9 : 0.55}
+            />
+            <text
+                x={0}
+                y={isHour ? 24 : 22}
+                textAnchor="middle"
+                fontSize={isHour ? 10 : 9}
+                fontWeight={isHour ? 700 : 400}
+                fill={isHour ? "#334155" : "#64748b"}
+            >
+                {fmtHHmm(ts)}
+            </text>
+        </g>
+    );
+}
+
+const SimpleTimeTick = ({ x, y, payload }) => {
+    const ts = payload?.value;
+    return (
+        <g transform={`translate(${x},${y})`}>
+            <line x1={0} x2={0} y1={0} y2={6} stroke="#94a3b8" strokeWidth={1} opacity={0.8} />
+            <text
+                x={0}
+                y={22}
+                textAnchor="middle"
+                fontSize={10}
+                fontWeight={700}
+                fill="#334155"
+            >
+                {fmtHHmm(ts)}
+            </text>
+        </g>
+    );
+};
+
 
 function DotWithValue(props) {
     const { cx, cy, value, stroke } = props;
@@ -259,6 +324,62 @@ function buildThresholdSeries(series, threshold) {
     return out;
 }
 
+const DISPLAY_POINT_COUNT = 7;
+
+function downsampleLastByBins(series, dayStart, dayEnd, bins = DISPLAY_POINT_COUNT) {
+    if (!Array.isArray(series) || !Number.isFinite(dayStart) || !Number.isFinite(dayEnd)) return [];
+
+    const endExclusive = dayEnd + 1;
+    const step = (endExclusive - dayStart) / bins;
+
+    const sorted = [...series]
+        .filter((p) => Number.isFinite(p?.ts))
+        .sort((a, b) => a.ts - b.ts);
+
+    let idx = 0;
+    let last = null;
+    const out = [];
+
+    for (let i = 0; i < bins; i++) {
+        const binEndExclusive = dayStart + (i + 1) * step;
+
+        // majuin pointer sampai batas bin (carry forward pembacaan terakhir)
+        while (idx < sorted.length && sorted[idx].ts < binEndExclusive) {
+            const v = Number(sorted[idx]?.v);
+            last = Number.isFinite(v) ? { ts: sorted[idx].ts, v } : last;
+            idx++;
+        }
+
+        const tsRaw = Math.min(dayStart + i * step, dayEnd);
+        const dLabel = new Date(tsRaw);
+        dLabel.setSeconds(0, 0);
+        const tsLabel = dLabel.getTime();
+
+        out.push({
+            ts: tsLabel,
+            v: last ? last.v : null,
+            srcTs: last ? last.ts : null,
+        });
+    }
+
+    return out;
+}
+
+function buildBelowAboveSeries(series, threshold) {
+    return (Array.isArray(series) ? series : []).map((p) => {
+        const v = Number(p?.v);
+        const vv = Number.isFinite(v) ? v : null;
+        return {
+            ...p,
+            v: vv,
+            below: vv != null && vv <= threshold ? vv : null,
+            above: vv != null && vv > threshold ? vv : null,
+        };
+    });
+}
+
+
+
 {/*Ubah ke False jika ingin matikan Data Dummy*/ }
 const USE_DUMMY = false;
 
@@ -267,7 +388,7 @@ const BACKEND_LOC_NAME = {
     "left-arm": "left arm",
     "right-leg": "right leg",
     "left-leg": "left leg",
-    back: "back",
+    "back": "back",
 };
 
 const DUMMY_TYPES = ["humidity", "vibration", "pressure"];
@@ -362,6 +483,11 @@ export default function DetailPage() {
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
 
+    // Manual Y-axis bounds (kosongkan untuk auto)
+    const [yMinInput, setYMinInput] = useState("");
+    const [yMaxInput, setYMaxInput] = useState("");
+
+    // ukur lebar container chart supaya kita bisa bikin chart lebih lebar + tetap responsif
     useEffect(() => {
         const el = chartScrollRef.current;
         if (!el) return;
@@ -481,12 +607,8 @@ export default function DetailPage() {
     const currentValue = activeBlock.current?.[activeSensorId] ?? 0;
     const threshold = meta.limit ?? 0;
 
-    const coloredSeries = useMemo(() => {
-        return buildThresholdSeries(chartSeries, threshold);
-    }, [chartSeries, threshold]);
-
-    const { windowedSeries, xDomain, hourTicks, tenMinTicks, fiveMinTicks } = useMemo(() => {
-        const latestTs = coloredSeries.reduce(
+    const { displaySeries, xDomain, displayTicks } = useMemo(() => {
+        const latestTs = chartSeries.reduce(
             (mx, p) => (Number.isFinite(p?.ts) ? Math.max(mx, p.ts) : mx),
             0
         );
@@ -495,25 +617,64 @@ export default function DetailPage() {
         const dayStart = startOfDayLocal(baseTs);
         const dayEnd = dayStart + MS_24H - 1;
 
-        const filtered = coloredSeries.filter(
-            (p) => Number.isFinite(p?.ts) && p.ts >= dayStart && p.ts <= dayEnd
-        );
+        // Tetap baca semua data 24 jam, tapi chart hanya tampilkan 7 titik (pembacaan terakhir per rentang waktu)
+        const raw24h = chartSeries
+            .filter((p) => Number.isFinite(p?.ts) && p.ts >= dayStart && p.ts <= dayEnd)
+            .map((p) => ({ ts: p.ts, v: Number(p?.v) }));
+
+        const sampled = downsampleLastByBins(raw24h, dayStart, dayEnd, DISPLAY_POINT_COUNT);
+        const colored = buildBelowAboveSeries(sampled, threshold);
 
         return {
-            windowedSeries: filtered,
+            displaySeries: colored,
             xDomain: [dayStart, dayEnd],
-            hourTicks: buildHourTicksForDay(dayStart),
-            tenMinTicks: build10MinTicksForDay(dayStart),
-            fiveMinTicks: build5MinTicksForDay(dayStart),
+            displayTicks: sampled.map((p) => p.ts),
         };
-    }, [coloredSeries]);
+    }, [chartSeries, threshold]);
 
-    const PX_PER_HOUR = 2000;
+
     const chartWidth = useMemo(() => {
-        const BASE = 24 * PX_PER_HOUR;
-        return Math.max(Number(chartContainerW) || 0, BASE);
+        const containerW = Number(chartContainerW) || 0;
+        // Tidak ada horizontal scroll: chart selalu mengikuti lebar container
+        return containerW > 0 ? containerW : 640;
     }, [chartContainerW]);
 
+    const yDomain = useMemo(() => {
+        const vals = displaySeries
+            .map((p) => Number(p?.v))
+            .filter((v) => Number.isFinite(v));
+
+        const minV = vals.length ? Math.min(...vals) : 0;
+        const maxV = vals.length ? Math.max(...vals) : 1;
+
+        const span = Math.max(1e-6, maxV - minV);
+        const pad = span * 0.12;
+
+        const softMin = Math.min(minV - pad, threshold * 0.85);
+        const softMax = Math.max(maxV + pad, threshold * 1.15);
+
+        const d0 = Number.isFinite(softMin) ? softMin : 0;
+        const d1 = Number.isFinite(softMax) ? softMax : 1;
+
+        if (d0 === d1) return [d0 - 1, d1 + 1];
+        return [d0, d1];
+    }, [displaySeries, threshold]);
+
+    const finalYDomain = useMemo(() => {
+        const autoMin = yDomain?.[0] ?? 0;
+        const autoMax = yDomain?.[1] ?? 1;
+
+        const minParsed = yMinInput.trim() === "" ? null : Number(yMinInput);
+        const maxParsed = yMaxInput.trim() === "" ? null : Number(yMaxInput);
+
+        let d0 = Number.isFinite(minParsed) ? minParsed : autoMin;
+        let d1 = Number.isFinite(maxParsed) ? maxParsed : autoMax;
+
+        if (d0 === d1) { d0 -= 1; d1 += 1; }
+        if (d0 > d1) [d0, d1] = [d1, d0];
+
+        return [d0, d1];
+    }, [yMinInput, yMaxInput, yDomain]);
 
     return (
         <div className="min-h-dvh bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
@@ -613,41 +774,38 @@ export default function DetailPage() {
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
-                            <div ref={chartScrollRef} className="w-full h-[320px] overflow-x-auto overflow-y-hidden">
+                            {/* X dibuat lebih lebar dan bisa di-scroll horizontal */}
+                            <div ref={chartScrollRef} className="w-full h-[320px] overflow-y-hidden">
                                 <div style={{ width: chartWidth, height: "320px" }}>
-                                    <LineChart width={chartWidth} height={320} data={windowedSeries} margin={{ top: 8, right: 16, left: 0, bottom: 24 }}>
+                                    <LineChart width={chartWidth} height={320} data={displaySeries} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
                                         <CartesianGrid strokeOpacity={0.15} />
-
                                         <XAxis
-                                            xAxisId="main"
                                             dataKey="ts"
                                             type="number"
                                             scale="time"
                                             domain={xDomain}
-                                            ticks={fiveMinTicks}
-                                            tick={{ fontSize: 10 }}
+                                            ticks={displayTicks}
                                             interval={0}
                                             tickLine={true}
-                                            axisLine={true}
-                                            height={34}
-                                            tickMargin={8}
-                                            tickFormatter={(ts) =>
-                                                new Date(ts).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false })
-                                            }
+                                            height={40}
+                                            tick={<SimpleTimeTick />}
                                         />
-                                        <YAxis tick={{ fontSize: 10 }} tickLine={true} axisLine={true} />
+                                        <YAxis tick={{ fontSize: 10 }} domain={yDomain} allowDataOverflow />
 
                                         <Tooltip
-                                            labelFormatter={(ts) =>
-                                                new Date(ts).toLocaleString("id-ID", {
+                                            labelFormatter={(ts, payload) => {
+                                                const p0 = payload?.[0]?.payload;
+                                                const realTs = Number.isFinite(p0?.srcTs) ? p0.srcTs : ts;
+                                                return new Date(realTs).toLocaleString("id-ID", {
                                                     day: "2-digit",
                                                     month: "2-digit",
                                                     year: "numeric",
                                                     hour: "2-digit",
                                                     minute: "2-digit",
+                                                    second: "2-digit",
                                                     hour12: false,
-                                                })
-                                            }
+                                                });
+                                            }}
                                             formatter={(value) => [fmt(value), `${meta.label} (${meta.unit})`]}
                                         />
 
@@ -664,7 +822,6 @@ export default function DetailPage() {
 
                                         <Line
                                             type="monotone"
-                                            xAxisId="main"
                                             dataKey="below"
                                             strokeWidth={2}
                                             stroke={SENSOR_COLOR[activeSensorId] || "#10b981"}
@@ -675,7 +832,6 @@ export default function DetailPage() {
 
                                         <Line
                                             type="monotone"
-                                            xAxisId="main"
                                             dataKey="above"
                                             strokeWidth={2}
                                             stroke="#ef4444"
@@ -692,9 +848,9 @@ export default function DetailPage() {
 
                 {/* LOCATION BAR */}
                 <div className="neo-surface p-3 sm:p-4">
-                    <div className="flex items-stretch gap-3 sm:gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                         {PARTS.map((id) => (
-                            <div key={id} className="min-w-60 sm:min-w-[320px] snap-start self-stretch">
+                            <div key={id} className="self-stretch">
                                 <LocationPill
                                     label={PART_LABEL[id]}
                                     currentObj={sensorData[id]?.current || {}}

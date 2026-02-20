@@ -34,17 +34,14 @@ export default function MannequinHotspotSVG({
     const PULSE_DUR = "1.2s";
 
     // ======== palet warna ========
-    // aktif (hijau)
     const ACTIVE_DOT = "rgba(16,185,129,1)";
     const ACTIVE_RING = "rgba(16,185,129,0.75)";
     const ACTIVE_HALO = "rgba(16,185,129,0.24)";
 
-    // normal (idle) - masih hijau tapi lebih lembut
     const IDLE_DOT = "rgba(16,185,129,0.85)";
     const IDLE_RING = "rgba(16,185,129,0.45)";
     const IDLE_HALO = "rgba(16,185,129,0.14)";
 
-    // redup saat ada activePart lain (dim)
     const DIM_DOT = "rgba(16,185,129,0.60)";
     const DIM_RING = "rgba(16,185,129,0.35)";
     const DIM_HALO = "rgba(16,185,129,0.14)";
@@ -59,7 +56,6 @@ export default function MannequinHotspotSVG({
 
             <defs>
                 <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-                    {/* glow layer 1 */}
                     <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur1" />
                     <feColorMatrix
                         in="blur1"
@@ -72,8 +68,6 @@ export default function MannequinHotspotSVG({
                                 "
                         result="glow1"
                     />
-
-                    {/* glow layer 2 (lebih lebar) */}
                     <feGaussianBlur in="SourceGraphic" stdDeviation="4.8" result="blur2" />
                     <feColorMatrix
                         in="blur2"
@@ -107,16 +101,11 @@ export default function MannequinHotspotSVG({
             {SENSORS.map((s) => {
                 const active = isActive(s.id);
                 const hover = isHover(s.id);
-
-                // jika ada activePart dan ini bukan yang aktif -> redupkan
                 const dimOthers = Boolean(activePart) && !active;
 
-                // pilih warna berdasarkan state
                 const dotFill = active ? ACTIVE_DOT : dimOthers ? DIM_DOT : IDLE_DOT;
                 const ringStroke = active ? ACTIVE_RING : dimOthers ? DIM_RING : IDLE_RING;
                 const haloFill = active ? ACTIVE_HALO : dimOthers ? DIM_HALO : IDLE_HALO;
-
-                // opacity halus supaya hover masih terasa
                 const haloOpacity = active ? 0.45 : hover ? 0.28 : dimOthers ? 0.12 : 0.18;
                 const ringOpacity = active ? 1 : hover ? 0.65 : dimOthers ? 0.35 : 0.5;
                 const dotOpacity = active ? 1 : hover ? 0.9 : dimOthers ? 0.55 : 0.85;
@@ -134,8 +123,6 @@ export default function MannequinHotspotSVG({
                             filter: active ? "url(#neonGlow)" : "none",
                         }}
                     >
-
-                        {/* PULSE hanya untuk aktif */}
                         {active && (
                             <circle
                                 cx={s.x}
