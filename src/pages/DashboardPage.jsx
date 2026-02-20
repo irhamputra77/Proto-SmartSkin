@@ -196,8 +196,8 @@ export default function DashboardPage() {
                 </div>
 
                 {/* body */}
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="neo-inset p-3 rounded-2xl">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:h-25 md:my-2">
+                    <div className="neo-inset p-3 rounded-2xl md:pt-6">
                         <div className="text-xs text-slate-500">Min</div>
                         <div className="mt-1 text-lg font-semibold text-slate-900">
                             {fmt(summary?.min)}{" "}
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    <div className="neo-inset p-3 rounded-2xl">
+                    <div className="neo-inset p-3 rounded-2xl md:pt-6">
                         <div className="text-xs text-slate-500">Avg</div>
                         <div className="mt-1 text-lg font-semibold text-slate-900">
                             {fmt(summary?.avg)}{" "}
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    <div className="neo-inset p-3 rounded-2xl">
+                    <div className="neo-inset p-3 rounded-2xl md:pt-6">
                         <div className="text-xs text-slate-500">Max</div>
                         <div className="mt-1 text-lg font-semibold text-slate-900">
                             {fmt(summary?.max)}{" "}
@@ -277,7 +277,7 @@ export default function DashboardPage() {
                         {/* logo kanan */}
                         <div className="neo-inset p-3 rounded-2xl shrink-0">
                             <img
-                                src="/logo.png"
+                                src="/Logo.png"
                                 alt="STAS RG"
                                 className="h-10 sm:h-12 w-auto object-contain"
                                 draggable={false}
@@ -297,7 +297,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* CARDS */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 md:py-10 md:h-[400px]">
                     {SENSOR_TYPES.map((meta) => (
                         <SensorTypeCard
                             key={meta.key}
@@ -306,25 +306,6 @@ export default function DashboardPage() {
                             onOpen={() => nav(`/sensor/${meta.key}`)}
                         />
                     ))}
-                </div>
-
-                {/* OVERALL TREND */}
-                <div className="neo-surface p-4 sm:p-6 rounded-2xl">
-                    <div className="flex items-end justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-semibold text-slate-900">Overall Trend</div>
-                            <div className="text-xs text-slate-500 mt-1">
-                                Grafik agregat (avg semua titik). Detail per bagian tubuh ada di halaman detail.
-                            </div>
-                        </div>
-                        <div className="text-xs text-slate-500">Window: 60 min</div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                        <MiniTrend title="Temperature" unit="°C" data={overallData.temp} />
-                        <MiniTrend title="Pressure" unit="N" data={overallData.press} />
-                        <MiniTrend title="Vibration" unit="A" data={overallData.vib} />
-                    </div>
                 </div>
             </div>
         </div>
