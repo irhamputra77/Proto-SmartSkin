@@ -289,41 +289,55 @@ function buildThresholdSeries(series, threshold) {
     const out = [];
     if (!Array.isArray(series) || series.length === 0) return out;
 
-    const sorted = [...series].sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+    const sorted = [...series]
+        .filter((p) => Number.isFinite(p?.ts))
+        .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
 
     for (let i = 0; i < sorted.length; i++) {
         const cur = sorted[i];
         const prev = sorted[i - 1];
-        if (prev && Number.isFinite(prev.v) && Number.isFinite(cur.v)) {
-            const a = prev.v - threshold;
-            const b = cur.v - threshold;
 
-            if (a === 0 || b === 0 || (a < 0 && b > 0) || (a > 0 && b < 0)) {
-                if (a !== 0 && b !== 0) {
-                    const ratio = (threshold - prev.v) / (cur.v - prev.v);
-                    const tsCross = prev.ts + ratio * (cur.ts - prev.ts);
+        const curV = Number(cur?.v);
+        const prevV = Number(prev?.v);
 
-                    out.push({
-                        ts: tsCross,
-                        v: threshold,
-                        below: threshold,
-                        above: threshold,
-                    });
-                }
+        const curOk = Number.isFinite(curV);
+        const prevOk = Number.isFinite(prevV);
+
+        // kalau ada crossing dan kedua titik valid -> sisipkan titik di threshold
+        if (prevOk && curOk) {
+            const a = prevV - threshold;
+            const b = curV - threshold;
+
+            const crosses =
+                a === 0 || b === 0 || (a < 0 && b > 0) || (a > 0 && b < 0);
+
+            if (crosses && a !== 0 && b !== 0) {
+                const ratio = (threshold - prevV) / (curV - prevV);
+                const tsCross = prev.ts + ratio * (cur.ts - prev.ts);
+
+                out.push({
+                    ts: tsCross,
+                    v: threshold,
+                    below: threshold,
+                    above: threshold,
+                    isCross: true,
+                });
             }
         }
 
-        const v = Number(cur.v);
+        const vv = curOk ? curV : null;
+
         out.push({
             ...cur,
-            below: v <= threshold ? v : null,
-            above: v > threshold ? v : null,
+            v: vv,
+            below: vv != null && vv <= threshold ? vv : null,
+            above: vv != null && vv > threshold ? vv : null,
+            isCross: false,
         });
     }
 
     return out;
 }
-
 const DISPLAY_POINT_COUNT = 7;
 
 function downsampleLastByBins(series, dayStart, dayEnd, bins = DISPLAY_POINT_COUNT) {
@@ -623,7 +637,7 @@ export default function DetailPage() {
             .map((p) => ({ ts: p.ts, v: Number(p?.v) }));
 
         const sampled = downsampleLastByBins(raw24h, dayStart, dayEnd, DISPLAY_POINT_COUNT);
-        const colored = buildBelowAboveSeries(sampled, threshold);
+        const colored = buildThresholdSeries(sampled, threshold);
 
         return {
             displaySeries: colored,
