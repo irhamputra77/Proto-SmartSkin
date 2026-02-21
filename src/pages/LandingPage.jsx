@@ -275,7 +275,7 @@ export default function LandingPage() {
 
                         <div className="flex items-center gap-3 sm:gap-5 flex-wrap justify-end">
                             <NavPill href="#about">About</NavPill>
-                            <NavPill href="#contact">Contact</NavPill>
+                            <NavPill href="#footer">Contact</NavPill>
                         </div>
                     </div>
                 </div>
@@ -560,13 +560,13 @@ export default function LandingPage() {
                         </section>
 
                         {/* FOOTER */}
-                        <footer className="mt-24 border-t border-white/60" style={{ backgroundColor: BG }}>
+                        <footer id="footer" className="mt-24 border-t border-white/60" style={{ backgroundColor: BG }}>
                             <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8 lg:px-20 py-10">
                                 <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-3">
                                             <img
-                                                src="/public/logo stas rg baru besar.png"
+                                                src="/Logo.png"
                                                 alt="STAS RG"
                                                 className="h-14 w-auto"
                                                 draggable={false}
