@@ -1,9 +1,15 @@
 // LandingPage.jsx (Responsive)
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Shield, Activity, BarChart3, FileText } from "lucide-react";
 import { Mail, Phone, MapPin, Linkedin, Instagram } from "lucide-react";
 
 const BG = "#e9eef3";
+
+// Pastikan file ini ada di folder /public:
+// - public/dashboard_photo.jpg
+// - public/dashboard_photo_2.jpg
+const ABOUT_PHOTOS = ["/dashboard_photo.jpg", "/dashboard_photo_2.jpg"];
 
 const neoLightShadow = `
   -6px -6px 6px rgba(255,255,255,0.5),
@@ -233,6 +239,20 @@ function FeatureCard({ Icon, title, desc }) {
 }
 
 export default function LandingPage() {
+    const [aboutIdx, setAboutIdx] = useState(0);
+
+    useEffect(() => {
+        if (ABOUT_PHOTOS.length <= 1) return;
+        const t = setInterval(() => {
+            setAboutIdx((i) => (i + 1) % ABOUT_PHOTOS.length);
+        }, 4500);
+        return () => clearInterval(t);
+    }, []);
+
+    const goPrev = () =>
+        setAboutIdx((i) => (i - 1 + ABOUT_PHOTOS.length) % ABOUT_PHOTOS.length);
+    const goNext = () => setAboutIdx((i) => (i + 1) % ABOUT_PHOTOS.length);
+
     return (
         <div style={{ backgroundColor: BG, minHeight: "100dvh", position: "relative", overflowX: "hidden" }}>
             {/* NAVBAR */}
@@ -420,19 +440,90 @@ export default function LandingPage() {
 
                                 <div className="flex justify-start lg:justify-end">
                                     <NeoSurface className="w-full max-w-[560px] h-60 sm:h-[280px] overflow-hidden relative">
-                                        <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm">
-                                            About Image Frame
-                                        </div>
+                                        {/* ABOUT PHOTOS CAROUSEL */}
+                                        {ABOUT_PHOTOS.map((src, i) => (
+                                            <img
+                                                key={src}
+                                                src={src}
+                                                alt={`SmartSkin activity ${i + 1}`}
+                                                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === aboutIdx ? "opacity-100" : "opacity-0"
+                                                    }`}
+                                                draggable={false}
+                                                style={{ objectPosition: src === "/dashboard_photo_2.jpg" ? "center 65%" : "center 55%" }}
+                                            />
+                                        ))}
 
-                                        <img
-                                            src="/about-image.png"
-                                            alt="About Illustration"
-                                            className="absolute inset-0 w-full h-full object-cover"
-                                            draggable={false}
-                                            onError={(e) => {
-                                                e.currentTarget.style.display = "none";
+                                        {/* soft overlay */}
+                                        <div
+                                            className="absolute inset-0 pointer-events-none"
+                                            style={{
+                                                background:
+                                                    "linear-gradient(to top, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0) 55%)",
                                             }}
                                         />
+
+                                        {/* controls */}
+                                        {ABOUT_PHOTOS.length > 1 && (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Previous photo"
+                                                    onClick={goPrev}
+                                                    className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center select-none"
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        background: BG,
+                                                        color: "#64748b",
+                                                        fontSize: 22,
+                                                        lineHeight: "22px",
+                                                    }}
+                                                >
+                                                    ‹
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    aria-label="Next photo"
+                                                    onClick={goNext}
+                                                    className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center select-none"
+                                                    style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        background: BG,
+                                                        color: "#64748b",
+                                                        fontSize: 22,
+                                                        lineHeight: "22px",
+                                                    }}
+                                                >
+                                                    ›
+                                                </button>
+
+                                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                                                    {ABOUT_PHOTOS.map((_, i) => (
+                                                        <button
+                                                            key={i}
+                                                            type="button"
+                                                            aria-label={`Go to photo ${i + 1}`}
+                                                            onClick={() => setAboutIdx(i)}
+                                                            className="rounded-full"
+                                                            style={{
+                                                                width: 9,
+                                                                height: 9,
+                                                                background:
+                                                                    i === aboutIdx
+                                                                        ? "#1CD400"
+                                                                        : "rgba(100,116,139,0.35)",
+                                                                boxShadow:
+                                                                    i === aboutIdx
+                                                                        ? "0 0 0 4px rgba(28,212,0,0.15)"
+                                                                        : "none",
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
                                     </NeoSurface>
                                 </div>
                             </div>
