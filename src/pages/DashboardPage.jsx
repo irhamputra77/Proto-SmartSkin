@@ -62,7 +62,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "localhost:3000";
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
 
         const fetchData = async () => {
             try {
@@ -77,14 +77,13 @@ export default function DashboardPage() {
                     vib: []
                 };
 
-                readings.forEach(r => {
-                    const backendType = r.sensor.sensorType.name;
-                    const sensorKey = Object.keys(SENSOR_TYPES).find(key =>
-                        SENSOR_TYPES[key].backendType === backendType
-                    );
+                readings.forEach((r) => {
+                    const backendType = r?.sensor?.sensorType?.name; // humidity/vibration/pressure
+                    const key = SENSOR_TYPES.find((t) => t.backendType === backendType)?.key; // temp/press/vib
 
-                    if (sensorKey && r.value != null) {
-                        sensorData[sensorKey].push(parseFloat(r.value));
+                    const v = r?.value != null ? Number(r.value) : null;
+                    if (key && Number.isFinite(v)) {
+                        sensorData[key].push(v);
                     }
                 });
 
@@ -128,9 +127,9 @@ export default function DashboardPage() {
             } catch (err) {
                 console.error("Error fetching data:", err);
                 setSummary({
-                    temp: { avg: 28.2, min: 26.9, max: 30.1, status: "ok" },
-                    vib: { avg: 0.62, min: 0.21, max: 1.02, status: "ok" },
-                    press: { avg: 44, min: 28, max: 61, status: "ok" },
+                    temp: { avg: 0, min: 0, max: 0, status: "ok" },
+                    vib: { avg: 0, min: 0, max: 0, status: "ok" },
+                    press: { avg: 0, min: 0, max: 0, status: "ok" },
                 });
                 setLoading(false);
             }
