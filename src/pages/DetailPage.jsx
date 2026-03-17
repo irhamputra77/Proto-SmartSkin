@@ -18,7 +18,7 @@ import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
 {/*Ubah Limit Disini*/ }
 const SENSOR_META = {
-    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 37 },
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 37 },
     vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 2.5 },
     press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 120 },
 };
@@ -405,10 +405,10 @@ const BACKEND_LOC_NAME = {
     "back": "back",
 };
 
-const DUMMY_TYPES = ["humidity", "vibration", "pressure"];
+const DUMMY_TYPES = ["temperature", "vibration", "pressure"];
 
 const DUMMY_VALUE = {
-    humidity: { base: 35, amp: 4.5, period: 18, noise: 0.25, spike: 2.5 },
+    temperature: { base: 28, amp: 1.1, period: 18, noise: 0.25, spike: 2.5 },
     vibration: { base: 2.0, amp: 1.6, period: 14, noise: 0.08, spike: 0.6 },
     pressure: { base: 110, amp: 22, period: 22, noise: 1.0, spike: 6 },
 };
@@ -448,7 +448,7 @@ function createDummyState() {
 }
 
 function dummyValueAt(sensor, ts, start) {
-    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.humidity;
+    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.temperature;
     const t = (ts - start) / 1000;
     const noise = (Math.random() * 2 - 1) * cfg.noise;
     let v = cfg.base + cfg.amp * Math.sin(t / cfg.period + sensor.phase) + noise;
