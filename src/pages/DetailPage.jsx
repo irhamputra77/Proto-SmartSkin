@@ -18,7 +18,7 @@ import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
 {/*Ubah Limit Disini*/ }
 const SENSOR_META = {
-    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 37 },
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 37 },
     vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 2.5 },
     press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 120 },
 };
@@ -63,32 +63,6 @@ function fmt(v) {
     return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
-const MS_1H = 60 * 60 * 1000;
-const MS_24H = 24 * MS_1H;
-
-function startOfDayLocal(ts) {
-    const d = new Date(ts);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-}
-
-function buildHourTicksForDay(dayStart) {
-    return Array.from({ length: 24 }, (_, i) => dayStart + i * MS_1H);
-}
-
-const MS_10M = 10 * 60 * 1000;
-function build10MinTicksForDay(dayStart) {
-    // 00:00 s/d 23:50 (144 ticks)
-    return Array.from({ length: 24 * 6 }, (_, i) => dayStart + i * MS_10M);
-}
-
-function fmtHHmm(ts) {
-    const d = new Date(ts);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
-}
-
 function fmtHHmmss(ts) {
     if (!Number.isFinite(ts)) return "";
     const d = new Date(ts);
@@ -98,6 +72,12 @@ function fmtHHmmss(ts) {
     return `${hh}:${mm}:${ss}`;
 }
 
+function fmtHHmm(ts) {
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+}
 // Single-row axis: major ticks on the hour, minor ticks every 10 minutes
 function CombinedTimeTick({ x, y, payload }) {
     const ts = payload?.value;
@@ -142,7 +122,7 @@ const SimpleTimeTick = ({ x, y, payload }) => {
                 fontWeight={700}
                 fill="#334155"
             >
-                {fmtHHmm(ts)}
+                {fmtHHmmss(ts)}
             </text>
         </g>
     );
@@ -285,99 +265,8 @@ function LocationPill({ label, currentObj, unit, count, active, onClick, thresho
     );
 }
 
-function buildThresholdSeries(series, threshold) {
-    const out = [];
-    if (!Array.isArray(series) || series.length === 0) return out;
-
-    const sorted = [...series]
-        .filter((p) => Number.isFinite(p?.ts))
-        .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
-
-    for (let i = 0; i < sorted.length; i++) {
-        const cur = sorted[i];
-        const prev = sorted[i - 1];
-
-        const curV = Number(cur?.v);
-        const prevV = Number(prev?.v);
-
-        const curOk = Number.isFinite(curV);
-        const prevOk = Number.isFinite(prevV);
-
-        // kalau ada crossing dan kedua titik valid -> sisipkan titik di threshold
-        if (prevOk && curOk) {
-            const a = prevV - threshold;
-            const b = curV - threshold;
-
-            const crosses =
-                a === 0 || b === 0 || (a < 0 && b > 0) || (a > 0 && b < 0);
-
-            if (crosses && a !== 0 && b !== 0) {
-                const ratio = (threshold - prevV) / (curV - prevV);
-                const tsCross = prev.ts + ratio * (cur.ts - prev.ts);
-
-                out.push({
-                    ts: tsCross,
-                    v: threshold,
-                    below: threshold,
-                    above: threshold,
-                    isCross: true,
-                });
-            }
-        }
-
-        const vv = curOk ? curV : null;
-
-        out.push({
-            ...cur,
-            v: vv,
-            below: vv != null && vv <= threshold ? vv : null,
-            above: vv != null && vv > threshold ? vv : null,
-            isCross: false,
-        });
-    }
-
-    return out;
-}
 const DISPLAY_POINT_COUNT = 7;
 
-function downsampleLastByBins(series, dayStart, dayEnd, bins = DISPLAY_POINT_COUNT) {
-    if (!Array.isArray(series) || !Number.isFinite(dayStart) || !Number.isFinite(dayEnd)) return [];
-
-    const endExclusive = dayEnd + 1;
-    const step = (endExclusive - dayStart) / bins;
-
-    const sorted = [...series]
-        .filter((p) => Number.isFinite(p?.ts))
-        .sort((a, b) => a.ts - b.ts);
-
-    let idx = 0;
-    let last = null;
-    const out = [];
-
-    for (let i = 0; i < bins; i++) {
-        const binEndExclusive = dayStart + (i + 1) * step;
-
-        // majuin pointer sampai batas bin (carry forward pembacaan terakhir)
-        while (idx < sorted.length && sorted[idx].ts < binEndExclusive) {
-            const v = Number(sorted[idx]?.v);
-            last = Number.isFinite(v) ? { ts: sorted[idx].ts, v } : last;
-            idx++;
-        }
-
-        const tsRaw = Math.min(dayStart + i * step, dayEnd);
-        const dLabel = new Date(tsRaw);
-        dLabel.setSeconds(0, 0);
-        const tsLabel = dLabel.getTime();
-
-        out.push({
-            ts: tsLabel,
-            v: last ? last.v : null,
-            srcTs: last ? last.ts : null,
-        });
-    }
-
-    return out;
-}
 
 function buildBelowAboveSeries(series, threshold) {
     return (Array.isArray(series) ? series : []).map((p) => {
@@ -393,6 +282,24 @@ function buildBelowAboveSeries(series, threshold) {
 }
 
 
+// Ambil N pembacaan TERAKHIR (berdasarkan timestamp) yang valid
+function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
+    if (!Array.isArray(series) || series.length === 0) return [];
+
+    const sorted = [...series]
+        .filter((p) => Number.isFinite(p?.ts))
+        .sort((a, b) => a.ts - b.ts);
+
+    // ambil dari belakang, tapi hanya yang v valid
+    const out = [];
+    for (let i = sorted.length - 1; i >= 0 && out.length < n; i--) {
+        const v = Number(sorted[i]?.v);
+        if (!Number.isFinite(v)) continue;
+        out.push({ ts: sorted[i].ts, v });
+    }
+
+    return out.reverse(); // balik ke urutan waktu naik (kiri->kanan)
+}
 
 {/*Ubah ke False jika ingin matikan Data Dummy*/ }
 const USE_DUMMY = false;
@@ -527,15 +434,16 @@ export default function DetailPage() {
                 const count = PART_SENSOR_COUNT[part] ?? 2;
                 const series = {};
                 const current = {};
+                const currentTs = {};
                 for (let i = 1; i <= count; i++) {
                     series[i] = [];
-                    current[i] = 0;
+                    current[i] = null;
+                    currentTs[i] = -Infinity;
                 }
-                data[part] = { series, current };
+                data[part] = { series, current, currentTs };
             });
             return data;
         };
-
         const normalizeLocation = (locName) => {
             const key = String(locName || "").trim().toLowerCase();
             return LOCATION_MAP_BACKEND[key] || null;
@@ -591,8 +499,16 @@ export default function DetailPage() {
                     if (!data[frontendLoc]?.series?.[sensorNum]) return;
 
                     const ts = new Date(r.timestamp).getTime();
+                    if (!Number.isFinite(ts)) return;
+
                     data[frontendLoc].series[sensorNum].push({ ts, v: value });
-                    data[frontendLoc].current[sensorNum] = value;
+
+                    // ✅ current = value dengan timestamp TERBARU
+                    const prevTs = data[frontendLoc].currentTs?.[sensorNum] ?? -Infinity;
+                    if (ts >= prevTs) {
+                        data[frontendLoc].currentTs[sensorNum] = ts;
+                        data[frontendLoc].current[sensorNum] = value;
+                    }
                 });
 
                 setSensorData(data);
@@ -621,31 +537,86 @@ export default function DetailPage() {
     const currentValue = activeBlock.current?.[activeSensorId] ?? 0;
     const threshold = meta.limit ?? 0;
 
-    const { displaySeries, xDomain, displayTicks } = useMemo(() => {
-        const latestTs = chartSeries.reduce(
-            (mx, p) => (Number.isFinite(p?.ts) ? Math.max(mx, p.ts) : mx),
-            0
-        );
+    const { displaySeries, xDomain, displayTicks, tickPoints } = useMemo(() => {
+        const lastN = takeLastNReadings(chartSeries, DISPLAY_POINT_COUNT);
 
-        const baseTs = latestTs || Date.now();
-        const dayStart = startOfDayLocal(baseTs);
-        const dayEnd = dayStart + MS_24H - 1;
+        // ✅ pastikan urut naik berdasarkan timestamp sebelum diberi index x
+        const ordered = [...lastN].sort((a, b) => a.ts - b.ts);
 
-        // Tetap baca semua data 24 jam, tapi chart hanya tampilkan 7 titik (pembacaan terakhir per rentang waktu)
-        const raw24h = chartSeries
-            .filter((p) => Number.isFinite(p?.ts) && p.ts >= dayStart && p.ts <= dayEnd)
-            .map((p) => ({ ts: p.ts, v: Number(p?.v) }));
+        const base = ordered.map((p, i) => ({
+            x: i,
+            v: p.v,
+            srcTs: p.ts,
+        }));
 
-        const sampled = downsampleLastByBins(raw24h, dayStart, dayEnd, DISPLAY_POINT_COUNT);
-        const colored = buildThresholdSeries(sampled, threshold);
+        const colored = buildThresholdSeriesByX(base, threshold);
 
         return {
             displaySeries: colored,
-            xDomain: [dayStart, dayEnd],
-            displayTicks: sampled.map((p) => p.ts),
+            xDomain: [0, Math.max(0, base.length - 1)],
+            displayTicks: base.map((p) => p.x),
+            tickPoints: base,
         };
     }, [chartSeries, threshold]);
 
+    function buildThresholdSeriesByX(series, threshold) {
+        const out = [];
+        if (!Array.isArray(series) || series.length === 0) return out;
+
+        const sorted = [...series]
+            .filter((p) => Number.isFinite(p?.x))
+            .sort((a, b) => a.x - b.x);
+
+        for (let i = 0; i < sorted.length; i++) {
+            const cur = sorted[i];
+            const prev = sorted[i - 1];
+
+            const curV = Number(cur?.v);
+            const prevV = Number(prev?.v);
+
+            const curOk = Number.isFinite(curV);
+            const prevOk = Number.isFinite(prevV);
+
+            // sisipkan titik crossing di antara prev dan cur (dalam ruang x)
+            if (prev && prevOk && curOk) {
+                const a = prevV - threshold;
+                const b = curV - threshold;
+
+                const crosses =
+                    a === 0 || b === 0 || (a < 0 && b > 0) || (a > 0 && b < 0);
+
+                if (crosses && a !== 0 && b !== 0 && cur.x !== prev.x) {
+                    const ratio = (threshold - prevV) / (curV - prevV);
+                    const xCross = prev.x + ratio * (cur.x - prev.x);
+
+                    out.push({
+                        x: xCross,
+                        v: threshold,
+                        below: threshold,
+                        above: threshold,
+                        isCross: true,
+                        // untuk tooltip/time label: interpolasi waktu berdasarkan srcTs
+                        srcTs:
+                            Number.isFinite(prev?.srcTs) && Number.isFinite(cur?.srcTs)
+                                ? prev.srcTs + ratio * (cur.srcTs - prev.srcTs)
+                                : cur?.srcTs ?? prev?.srcTs ?? null,
+                    });
+                }
+            }
+
+            const vv = curOk ? curV : null;
+
+            out.push({
+                ...cur,
+                v: vv,
+                below: vv != null && vv <= threshold ? vv : null,
+                above: vv != null && vv > threshold ? vv : null,
+                isCross: false,
+            });
+        }
+
+        return out;
+    }
 
     const chartWidth = useMemo(() => {
         const containerW = Number(chartContainerW) || 0;
@@ -675,20 +646,19 @@ export default function DetailPage() {
     }, [displaySeries, threshold]);
 
     const finalYDomain = useMemo(() => {
-        const autoMin = yDomain?.[0] ?? 0;
-        const autoMax = yDomain?.[1] ?? 1;
+        // 1) kalau ada range fix dari meta -> kunci di situ
+        const yr = meta?.yRange;
+        if (Array.isArray(yr) && yr.length === 2) {
+            const a = Number(yr[0]);
+            const b = Number(yr[1]);
+            if (Number.isFinite(a) && Number.isFinite(b)) {
+                return a <= b ? [a, b] : [b, a];
+            }
+        }
 
-        const minParsed = yMinInput.trim() === "" ? null : Number(yMinInput);
-        const maxParsed = yMaxInput.trim() === "" ? null : Number(yMaxInput);
-
-        let d0 = Number.isFinite(minParsed) ? minParsed : autoMin;
-        let d1 = Number.isFinite(maxParsed) ? maxParsed : autoMax;
-
-        if (d0 === d1) { d0 -= 1; d1 += 1; }
-        if (d0 > d1) [d0, d1] = [d1, d0];
-
-        return [d0, d1];
-    }, [yMinInput, yMaxInput, yDomain]);
+        // 2) fallback: auto domain (yang sudah kamu hitung)
+        return yDomain;
+    }, [meta, yDomain]);
 
     return (
         <div className="min-h-dvh bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
@@ -794,17 +764,20 @@ export default function DetailPage() {
                                     <LineChart width={chartWidth} height={320} data={displaySeries} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
                                         <CartesianGrid strokeOpacity={0.15} />
                                         <XAxis
-                                            dataKey="ts"
+                                            dataKey="x"
                                             type="number"
-                                            scale="time"
                                             domain={xDomain}
                                             ticks={displayTicks}
                                             interval={0}
                                             tickLine={true}
                                             height={40}
-                                            tick={<SimpleTimeTick />}
+                                            tick={({ x, y, payload }) => {
+                                                const idx = payload?.value; // 0..6
+                                                const ts = tickPoints?.[idx]?.srcTs;
+                                                return <SimpleTimeTick x={x} y={y} payload={{ value: ts }} />;
+                                            }}
                                         />
-                                        <YAxis tick={{ fontSize: 10 }} domain={yDomain} allowDataOverflow />
+                                        <YAxis tick={{ fontSize: 10 }} domain={finalYDomain} allowDataOverflow />
 
                                         <Tooltip
                                             labelFormatter={(ts, payload) => {
