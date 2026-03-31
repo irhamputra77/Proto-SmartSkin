@@ -694,7 +694,7 @@ export default function DetailPage() {
                     {/* LEFT: mannequin */}
                     <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
                         <div className="text-[12px] text-slate-500 mb-3 text-center">
-                            Klik mannequin / kartu lokasi untuk fokus grafik. Pilih tab sensor untuk melihat sensor tertentu.
+                            Click mannequin / location card to focus the graph. Select sensor tab to view specific sensor.
                         </div>
 
                         <div className="neo-inset p-3 flex-1 min-h-80 sm:min-h-0 flex items-center justify-center overflow-hidden">
@@ -731,10 +731,10 @@ export default function DetailPage() {
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div>
                                 <div className="font-semibold text-slate-800">
-                                    Grafik – {PART_LABEL[activePart]}
+                                    Graph – {PART_LABEL[activePart]}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                    Punggung: 4 sensor • Tangan/Kaki: 2 sensor
+                                    Back: 4 sensors • Hands/Legs: 2 sensors
                                 </div>
                             </div>
 
@@ -758,7 +758,7 @@ export default function DetailPage() {
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
-                            {/* X dibuat lebih lebar dan bisa di-scroll horizontal */}
+                            {/* X made wider and can scroll horizontally */}
                             <div ref={chartScrollRef} className="w-full h-[320px] overflow-y-hidden">
                                 <div style={{ width: chartWidth, height: "320px" }}>
                                     <LineChart width={chartWidth} height={320} data={displaySeries} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
