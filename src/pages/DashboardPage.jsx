@@ -42,7 +42,7 @@ const SENSOR_TYPES = [
     },
 ];
 
-// Mapping lokasi
+// Location mapping
 const LOCATION_MAP = {
     "right arm": "right-leg",
     "left arm": "left-leg",
@@ -67,7 +67,7 @@ export default function DashboardPage() {
         const fetchData = async () => {
             try {
                 const res = await fetch(`${API_BASE}/sensor-reading`);
-                if (!res.ok) throw new Error('Gagal ambil data');
+                if (!res.ok) throw new Error('Failed to fetch data');
                 const readings = await res.json();
 
 
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                 {/* footer */}
                 <div className="mt-4 flex items-center justify-between gap-3">
                     <div className="text-sm text-slate-600">
-                        Klik untuk lihat detail <b>{meta.label}</b> per lokasi tubuh.
+                        Click to view {meta.label} details per body location.
                     </div>
                 </div>
             </button>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-2 text-xs text-slate-500">
-                    Trend agregat (avg semua lokasi tubuh). Detail per bagian tubuh ada di halaman detail.
+                    Aggregate trend (avg all body locations). Details per body part are on the detail page.
                 </div>
             </div>
         );
@@ -269,7 +269,7 @@ export default function DashboardPage() {
                                 Smart Skin Dashboard
                             </div>
                             <div className="mt-1 text-sm text-slate-500 max-w-3xl">
-                                Pilih <b>jenis sensor</b> untuk melihat tren dan detail per lokasi tubuh (mannequin).
+                                Select <b>sensor type</b> to view trend and details per body location (mannequin).
                             </div>
                         </div>
 
@@ -290,7 +290,7 @@ export default function DashboardPage() {
                     <div>
                         <div className="text-sm font-semibold text-slate-900">Sensor Categories</div>
                         <div className="text-xs text-slate-500">
-                            Tap card untuk masuk ke halaman detail (per bagian tubuh).
+                            Tap card to enter detail page (per body part).
                         </div>
                     </div>
                 </div>

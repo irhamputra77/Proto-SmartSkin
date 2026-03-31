@@ -16,7 +16,7 @@ import {
 
 import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
-{/*Ubah Limit Disini*/ }
+{/* Change Limit Here */ }
 const SENSOR_META = {
     temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 26, yRange: [0, 80] },
     vib: { label: "Vibration", unit: "V", Icon: Waves, backendType: "vibration", limit: 3, yRange: [0, 3.3] },
@@ -24,22 +24,22 @@ const SENSOR_META = {
 };
 
 const PART_LABEL = {
-    "right-arm": "Tangan Kanan",
-    "left-arm": "Tangan Kiri",
-    "right-leg": "Paha Kanan",
-    "left-leg": "Paha Kiri",
-    back: "Punggung",
+    "right-arm": "Right Hand",
+    "left-arm": "Left Hand",
+    "right-leg": "Right Leg",
+    "left-leg": "Left Leg",
+    back: "Back",
 };
 
 const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
-// PERBAIKAN: Sesuaikan jumlah sensor per lokasi
+// IMPROVEMENT: Adjust number of sensors per location
 const PART_SENSOR_COUNT = {
     "left-arm": 2,
     "right-arm": 2,
-    "left-leg": 3,   // Paha kiri: 3 sensor
-    "right-leg": 3,  // Paha kanan: 3 sensor
-    back: 4,         // Punggung: 4 sensor
+    "left-leg": 3,   // Left leg: 3 sensors
+    "right-leg": 3,  // Right leg: 3 sensors
+    back: 4,         // Back: 4 sensors
 };
 
 const LOCATION_MAP_BACKEND = {
@@ -282,7 +282,7 @@ function buildBelowAboveSeries(series, threshold) {
 }
 
 
-// Ambil N pembacaan TERAKHIR (berdasarkan timestamp) yang valid
+// Get last N readings (based on timestamp) that are valid
 function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
     if (!Array.isArray(series) || series.length === 0) return [];
 
@@ -290,18 +290,18 @@ function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
         .filter((p) => Number.isFinite(p?.ts))
         .sort((a, b) => a.ts - b.ts);
 
-    // ambil dari belakang, tapi hanya yang v valid
+    // take from the end, but only valid v
     const out = [];
     for (let i = sorted.length - 1; i >= 0 && out.length < n; i--) {
         const v = Number(sorted[i]?.v);
-        if (!Number.isFinite(v)) continue;
+        if (!Number.isFinite(v)) /* Line 297 omitted */
         out.push({ ts: sorted[i].ts, v });
     }
 
-    return out.reverse(); // balik ke urutan waktu naik (kiri->kanan)
+    return out.reverse(); // reverse to ascending time order (left->right)
 }
 
-{/*Ubah ke False jika ingin matikan Data Dummy*/ }
+{/* Change to False to disable Dummy Data */ }
 const USE_DUMMY = false;
 
 const BACKEND_LOC_NAME = {
@@ -404,11 +404,11 @@ export default function DetailPage() {
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
 
-    // Manual Y-axis bounds (kosongkan untuk auto)
+    // Manual Y-axis bounds (leave empty for auto)
     const [yMinInput, setYMinInput] = useState("");
     const [yMaxInput, setYMaxInput] = useState("");
 
-    // ukur lebar container chart supaya kita bisa bikin chart lebih lebar + tetap responsif
+    // measure chart container width so we can make chart wider + keep responsive
     useEffect(() => {
         const el = chartScrollRef.current;
         if (!el) return;
@@ -476,7 +476,7 @@ export default function DetailPage() {
                     readings = generateDummyReadings(dummyRef.current);
                 } else {
                     const res = await fetch(`${API_BASE}/sensor-reading`);
-                    if (!res.ok) throw new Error("Gagal ambil data");
+                    if (!res.ok) throw new Error("Failed to fetch data");
                     readings = await res.json();
                 }
 
@@ -503,7 +503,7 @@ export default function DetailPage() {
 
                     data[frontendLoc].series[sensorNum].push({ ts, v: value });
 
-                    // ✅ current = value dengan timestamp TERBARU
+                    // ✅ current = value with most recent timestamp
                     const prevTs = data[frontendLoc].currentTs?.[sensorNum] ?? -Infinity;
                     if (ts >= prevTs) {
                         data[frontendLoc].currentTs[sensorNum] = ts;
@@ -577,7 +577,7 @@ export default function DetailPage() {
             const curOk = Number.isFinite(curV);
             const prevOk = Number.isFinite(prevV);
 
-            // sisipkan titik crossing di antara prev dan cur (dalam ruang x)
+            // insert crossing point between prev and cur (in x space)
             if (prev && prevOk && curOk) {
                 const a = prevV - threshold;
                 const b = curV - threshold;
@@ -595,7 +595,7 @@ export default function DetailPage() {
                         below: threshold,
                         above: threshold,
                         isCross: true,
-                        // untuk tooltip/time label: interpolasi waktu berdasarkan srcTs
+                        // for tooltip/time label: interpolate time based on srcTs
                         srcTs:
                             Number.isFinite(prev?.srcTs) && Number.isFinite(cur?.srcTs)
                                 ? prev.srcTs + ratio * (cur.srcTs - prev.srcTs)
@@ -620,7 +620,7 @@ export default function DetailPage() {
 
     const chartWidth = useMemo(() => {
         const containerW = Number(chartContainerW) || 0;
-        // Tidak ada horizontal scroll: chart selalu mengikuti lebar container
+        // No horizontal scroll: chart always matches container width
         return containerW > 0 ? containerW : 640;
     }, [chartContainerW]);
 
@@ -646,7 +646,7 @@ export default function DetailPage() {
     }, [displaySeries, threshold]);
 
     const finalYDomain = useMemo(() => {
-        // 1) kalau ada range fix dari meta -> kunci di situ
+        // 1) if there's a fixed range from meta -> lock it
         const yr = meta?.yRange;
         if (Array.isArray(yr) && yr.length === 2) {
             const a = Number(yr[0]);
@@ -656,7 +656,7 @@ export default function DetailPage() {
             }
         }
 
-        // 2) fallback: auto domain (yang sudah kamu hitung)
+        // 2) fallback: auto domain (already calculated)
         return yDomain;
     }, [meta, yDomain]);
 
@@ -694,7 +694,7 @@ export default function DetailPage() {
                     {/* LEFT: mannequin */}
                     <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
                         <div className="text-[12px] text-slate-500 mb-3 text-center">
-                            Klik mannequin / kartu lokasi untuk fokus grafik. Pilih tab sensor untuk melihat sensor tertentu.
+                            Click mannequin / location card to focus the graph. Select sensor tab to view specific sensor.
                         </div>
 
                         <div className="neo-inset p-3 flex-1 min-h-80 sm:min-h-0 flex items-center justify-center overflow-hidden">
@@ -731,10 +731,10 @@ export default function DetailPage() {
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div>
                                 <div className="font-semibold text-slate-800">
-                                    Grafik – {PART_LABEL[activePart]}
+                                    Graph – {PART_LABEL[activePart]}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                    Punggung: 4 sensor • Tangan/Kaki: 2 sensor
+                                    Back: 4 sensors • Hands/Legs: 2 sensors
                                 </div>
                             </div>
 
@@ -758,7 +758,7 @@ export default function DetailPage() {
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
-                            {/* X dibuat lebih lebar dan bisa di-scroll horizontal */}
+                            {/* X made wider and can scroll horizontally */}
                             <div ref={chartScrollRef} className="w-full h-[320px] overflow-y-hidden">
                                 <div style={{ width: chartWidth, height: "320px" }}>
                                     <LineChart width={chartWidth} height={320} data={displaySeries} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
