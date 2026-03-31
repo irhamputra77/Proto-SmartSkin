@@ -6,7 +6,7 @@ import { Mail, Phone, MapPin, Linkedin, Instagram } from "lucide-react";
 
 const BG = "#e9eef3";
 
-// Pastikan file ini ada di folder /public:
+// Make sure these files exist in /public folder:
 // - public/dashboard_photo.jpg
 // - public/dashboard_photo_2.jpg
 const ABOUT_PHOTOS = ["/dashboard_photo.jpg", "/dashboard_photo_2.jpg"];
@@ -380,7 +380,7 @@ export default function LandingPage() {
                                                     "
                                         style={{ textShadow: "0 1px 0 rgba(255,255,255,0.65)" }}
                                     >
-                                        Analisis dampak lingkungan medan tempur terhadap prajurit
+                                        Analyze the impact of battlefield environmental conditions on soldiers
                                     </p>
 
                                     <Link
@@ -431,9 +431,8 @@ export default function LandingPage() {
 
                                     <NeoInset className="mt-5 sm:mt-6 p-4 sm:p-[18px] w-full max-w-[520px]">
                                         <p className="text-xs sm:text-[13px] leading-[18px] text-slate-400">
-                                            Smart Skin mengubah permukaan tubuh mannequin menjadi jaringan sensor. Setiap benturan,
-                                            tekanan, dan getaran terekam sebagai data digital, sehingga pelatih dapat menilai risiko
-                                            cedera prajurit secara aman dan terukur.
+                                            Smart Skin transforms the mannequin's surface into a sensor network. Every impact,
+                                            pressure, and vibration are recorded as digital data, enabling trainers to safely and accurately assess soldier injury risks.
                                         </p>
                                     </NeoInset>
                                 </div>
@@ -538,23 +537,23 @@ export default function LandingPage() {
                             <div className="mt-6 sm:mt-7 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-7">
                                 <FeatureCard
                                     Icon={Shield}
-                                    title="Save Simulation"
-                                    desc="Uji berbagai skenario latihan intensif tanpa mengekspos prajurit pada risiko langsung, dari guncangan kendaraan hingga ledakan terkendali."
+                                    title="Safe Simulation"
+                                    desc="Test various intensive training scenarios without exposing soldiers to direct risk, from vehicle shocks to controlled explosions."
                                 />
                                 <FeatureCard
                                     Icon={Activity}
                                     title="Multi-Zone Body Sensor"
-                                    desc="Titik sensor ditempatkan di kepala, leher, dada, dan persendian untuk memetakan distribusi beban dan potensi cedera secara rinci."
+                                    desc="Sensor points are placed on the head, neck, chest, and joints to map load distribution and potential injury patterns in detail."
                                 />
                                 <FeatureCard
                                     Icon={BarChart3}
                                     title="Intuitive Visualization"
-                                    desc="Data dikirim ke dashboard Smart Skin dan divisualisasikan sebagai heatmap, grafik waktu, serta indikator risiko di tiap bagian tubuh."
+                                    desc="Data is sent to the Smart Skin dashboard and visualized as heatmap, time graph, and risk indicators for each body part."
                                 />
                                 <FeatureCard
                                     Icon={FileText}
                                     title="Data-based decisions"
-                                    desc="Hasil simulasi terdokumentasi rapi sehingga protokol pelatihan dapat dibandingkan, dievaluasi, dan disempurnakan secara berkelanjutan."
+                                    desc="Simulation results are well-documented so training protocols can be compared, evaluated, and improved continuously."
                                 />
                             </div>
                         </section>
@@ -573,7 +572,7 @@ export default function LandingPage() {
                                             />
                                         </div>
                                         <p className="text-sm leading-relaxed text-slate-600">
-                                            Smart Skin — Analisis dampak lingkungan medan tempur terhadap prajurit.
+                                            Smart Skin — Analyze the impact of battlefield environmental conditions on soldiers.
                                         </p>
                                     </div>
 
