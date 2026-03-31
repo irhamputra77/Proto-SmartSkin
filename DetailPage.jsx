@@ -18,7 +18,7 @@ import { ReferenceLine } from "recharts";
 
 
 const SENSOR_META = {
-    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 37 },
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 37 },
     vib: { label: "Vibration", unit: "A", Icon: Waves, backendType: "vibration", limit: 2.5 },
     press: { label: "Pressure", unit: "N", Icon: Gauge, backendType: "pressure", limit: 120 },
 };
