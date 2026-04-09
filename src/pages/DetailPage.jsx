@@ -45,6 +45,18 @@ const LOCATION_MAP_BACKEND = {
     "left arm": "left-arm",
     "right leg": "right-leg",
     "left leg": "left-leg",
+    "right_arm": "right-arm",
+    "left_arm": "left-arm",
+    "right_leg": "right-leg",
+    "left_leg": "left-leg",
+    back: "back",
+};
+
+const PART_TO_BACKEND_LOCATION = {
+    "right-arm": "right_arm",
+    "left-arm": "left_arm",
+    "right-leg": "right_leg",
+    "left-leg": "left_leg",
     back: "back",
 };
 
@@ -68,13 +80,6 @@ function fmtHHmmss(ts) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
-}
-
-function fmtHHmm(ts) {
-    const d = new Date(ts);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
 }
 
 const SimpleTimeTick = ({ x, y, payload }) => {
@@ -244,98 +249,7 @@ function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
     return out.reverse();
 }
 
-const USE_DUMMY = false;
-
-const BACKEND_LOC_NAME = {
-    "right-arm": "right arm",
-    "left-arm": "left arm",
-    "right-leg": "right leg",
-    "left-leg": "left leg",
-    "back": "back",
-};
-
-const DUMMY_TYPES = ["temperature", "vibration", "pressure"];
-
-const DUMMY_VALUE = {
-    temperature: { base: 35, amp: 4.5, period: 18, noise: 0.25, spike: 2.5 },
-    vibration: { base: 2.0, amp: 1.6, period: 14, noise: 0.08, spike: 0.6 },
-    pressure: { base: 110, amp: 22, period: 22, noise: 1.0, spike: 6 },
-};
-
-function createDummyState() {
-    const start = Date.now();
-    const stepMs = 3000;
-    const historyLen = 40;
-
-    const sensors = [];
-
-    PARTS.forEach((part) => {
-        const count = PART_SENSOR_COUNT[part] ?? 2;
-        for (let sid = 1; sid <= count; sid++) {
-            DUMMY_TYPES.forEach((type) => {
-                sensors.push({
-                    type,
-                    part,
-                    locName: BACKEND_LOC_NAME[part],
-                    externalId: sid,
-                    phase: Math.random() * Math.PI * 2,
-                    history: [],
-                });
-            });
-        }
-    });
-
-    sensors.forEach((s) => {
-        for (let i = historyLen - 1; i >= 0; i--) {
-            const ts = start - i * stepMs;
-            const v = dummyValueAt(s, ts, start);
-            s.history.push({ ts, v });
-        }
-    });
-
-    return { start, stepMs, historyLen, sensors };
-}
-
-function dummyValueAt(sensor, ts, start) {
-    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.temperature;
-    const t = (ts - start) / 1000;
-    const noise = (Math.random() * 2 - 1) * cfg.noise;
-    let v = cfg.base + cfg.amp * Math.sin(t / cfg.period + sensor.phase) + noise;
-
-    if (Math.random() < 0.06) v += cfg.spike;
-
-    return Math.round(v * 100) / 100;
-}
-
-function generateDummyReadings(state) {
-    const now = Date.now();
-
-    state.sensors.forEach((s) => {
-        const v = dummyValueAt(s, now, state.start);
-        s.history.push({ ts: now, v });
-        while (s.history.length > state.historyLen) s.history.shift();
-    });
-
-    const readings = [];
-    state.sensors.forEach((s) => {
-        s.history.forEach((p) => {
-            readings.push({
-                timestamp: new Date(p.ts).toISOString(),
-                value: p.v,
-                sensor: {
-                    location: { name: s.locName },
-                    sensorType: { name: s.type },
-                    externalId: s.externalId,
-                },
-            });
-        });
-    });
-
-    return readings;
-}
-
 export default function DetailPage() {
-    const dummyRef = useRef(null);
     const chartScrollRef = useRef(null);
     const isFetchingRef = useRef(false);
 
@@ -406,23 +320,17 @@ export default function DetailPage() {
             isFetchingRef.current = true;
 
             try {
-                let readings = [];
+                const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                url.searchParams.set("sensorType", meta.backendType);
+                url.searchParams.set("location", PART_TO_BACKEND_LOCATION[activePart]);
+                url.searchParams.set("page", "1");
+                url.searchParams.set("limit", "21");
 
-                if (USE_DUMMY) {
-                    if (!dummyRef.current) dummyRef.current = createDummyState();
-                    readings = generateDummyReadings(dummyRef.current);
-                } else {
-                    const url = new URL(`${API_BASE}/sensor-reading/paginated`);
-                    url.searchParams.set("sensorType", meta.backendType);
-                    url.searchParams.set("page", "1");
-                    url.searchParams.set("limit", "120");
+                const res = await fetch(url.toString(), { cache: "no-store" });
+                if (!res.ok) throw new Error("Failed to fetch data");
 
-                    const res = await fetch(url.toString(), { cache: "no-store" });
-                    if (!res.ok) throw new Error("Failed to fetch data");
-
-                    const json = await res.json();
-                    readings = Array.isArray(json?.data) ? json.data : [];
-                }
+                const json = await res.json();
+                const readings = Array.isArray(json?.data) ? json.data : [];
 
                 const data = initShape();
 
@@ -461,7 +369,20 @@ export default function DetailPage() {
                     }
                 });
 
-                setSensorData(data);
+                setSensorData((prev) => {
+                    const merged = { ...prev };
+
+                    PARTS.forEach((part) => {
+                        if (part === activePart) {
+                            merged[part] = data[part];
+                        } else if (!merged[part]) {
+                            merged[part] = data[part];
+                        }
+                    });
+
+                    return merged;
+                });
+
                 setLoading(false);
             } catch (err) {
                 console.error("Error fetching data:", err);
@@ -478,7 +399,7 @@ export default function DetailPage() {
             clearInterval(interval);
             isFetchingRef.current = false;
         };
-    }, [sensorKey, meta.backendType]);
+    }, [sensorKey, meta.backendType, activePart]);
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
     const activeBlock = sensorData[activePart] || { series: {}, current: {} };
