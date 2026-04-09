@@ -16,11 +16,10 @@ import {
 
 import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 
-{/* Change Limit Here */ }
 const SENSOR_META = {
-    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "humidity", limit: 26, yRange: [0, 80] },
-    vib: { label: "Vibration", unit: "V", Icon: Waves, backendType: "vibration", limit: 3, yRange: [0, 3.3] },
-    press: { label: "Pressure", unit: "N", Icon: Gauge, backendType: "pressure", limit: 18, yRange: [0, 20] },
+    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 26, yRange: [0, 80] },
+    vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 3, yRange: [0, 3.3] },
+    press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 18, yRange: [0, 20] },
 };
 
 const PART_LABEL = {
@@ -33,13 +32,12 @@ const PART_LABEL = {
 
 const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
 
-// IMPROVEMENT: Adjust number of sensors per location
 const PART_SENSOR_COUNT = {
     "left-arm": 2,
     "right-arm": 2,
-    "left-leg": 3,   // Left leg: 3 sensors
-    "right-leg": 3,  // Right leg: 3 sensors
-    back: 4,         // Back: 4 sensors
+    "left-leg": 3,
+    "right-leg": 3,
+    back: 4,
 };
 
 const LOCATION_MAP_BACKEND = {
@@ -51,10 +49,10 @@ const LOCATION_MAP_BACKEND = {
 };
 
 const SENSOR_COLOR = {
-    1: "#10b981", // emerald
-    2: "#3b82f6", // blue
-    3: "#f59e0b", // amber
-    4: "#10b981", // emerald
+    1: "#10b981",
+    2: "#3b82f6",
+    3: "#f59e0b",
+    4: "#10b981",
 };
 
 function fmt(v) {
@@ -78,36 +76,6 @@ function fmtHHmm(ts) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
 }
-// Single-row axis: major ticks on the hour, minor ticks every 10 minutes
-function CombinedTimeTick({ x, y, payload }) {
-    const ts = payload?.value;
-    const d = new Date(ts);
-    const isHour = d.getMinutes() === 0;
-
-    return (
-        <g transform={`translate(${x},${y})`}>
-            <line
-                x1={0}
-                x2={0}
-                y1={0}
-                y2={isHour ? 10 : 6}
-                stroke="#94a3b8"
-                strokeWidth={1}
-                opacity={isHour ? 0.9 : 0.55}
-            />
-            <text
-                x={0}
-                y={isHour ? 24 : 22}
-                textAnchor="middle"
-                fontSize={isHour ? 10 : 9}
-                fontWeight={isHour ? 700 : 400}
-                fill={isHour ? "#334155" : "#64748b"}
-            >
-                {fmtHHmm(ts)}
-            </text>
-        </g>
-    );
-}
 
 const SimpleTimeTick = ({ x, y, payload }) => {
     const ts = payload?.value;
@@ -127,7 +95,6 @@ const SimpleTimeTick = ({ x, y, payload }) => {
         </g>
     );
 };
-
 
 function DotWithValue(props) {
     const { cx, cy, value, stroke } = props;
@@ -181,7 +148,6 @@ function SensorTabs({ count, activeId, onChange }) {
 }
 
 function LocationPill({ label, currentObj, unit, count, active, onClick, threshold }) {
-
     return (
         <button
             type="button"
@@ -192,27 +158,25 @@ function LocationPill({ label, currentObj, unit, count, active, onClick, thresho
                 active ? "neo-inset" : "neo-surface hover:scale-[1.01]",
                 "p-4",
                 active ? "ring-2 ring-emerald-400/60" : "focus:ring-2 focus:ring-emerald-300/50",
-                "active:translate-y-pxtive:scale-[0.99]",
+                "active:translate-y-px active:scale-[0.99]",
                 active ? "translate-y-px" : "",
             ].join(" ")}
         >
-
             <div className="flex items-center justify-between gap-2">
                 <div className="font-semibold text-slate-900">{label}</div>
                 <StatusBadge tone="ok" className="text-xs px-3 py-1">
                     OK
                 </StatusBadge>
             </div>
+
             <div
                 className={[
                     "mt-3 w-full overflow-hidden",
                     "grid gap-2",
-                    count >= 3 ? "grid-cols-2" : "grid-cols-2",
+                    "grid-cols-2",
                     "min-h-11"
                 ].join(" ")}
             >
-
-
                 {Array.from({ length: count }, (_, i) => i + 1).map((sid) => {
                     const raw = Number(currentObj?.[sid] ?? 0);
                     const isOver = Number.isFinite(raw) && Number.isFinite(threshold) && raw > threshold;
@@ -254,11 +218,7 @@ function LocationPill({ label, currentObj, unit, count, active, onClick, thresho
                         </div>
                     );
                 })}
-
-
             </div>
-
-
 
             <div className="mt-2 text-xs text-slate-500">{active ? "Selected" : "Tap to focus"}</div>
         </button>
@@ -267,22 +227,6 @@ function LocationPill({ label, currentObj, unit, count, active, onClick, thresho
 
 const DISPLAY_POINT_COUNT = 7;
 
-
-function buildBelowAboveSeries(series, threshold) {
-    return (Array.isArray(series) ? series : []).map((p) => {
-        const v = Number(p?.v);
-        const vv = Number.isFinite(v) ? v : null;
-        return {
-            ...p,
-            v: vv,
-            below: vv != null && vv <= threshold ? vv : null,
-            above: vv != null && vv > threshold ? vv : null,
-        };
-    });
-}
-
-
-// Get last N readings (based on timestamp) that are valid
 function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
     if (!Array.isArray(series) || series.length === 0) return [];
 
@@ -290,7 +234,6 @@ function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
         .filter((p) => Number.isFinite(p?.ts))
         .sort((a, b) => a.ts - b.ts);
 
-    // take from the end, but only valid v
     const out = [];
     for (let i = sorted.length - 1; i >= 0 && out.length < n; i--) {
         const v = Number(sorted[i]?.v);
@@ -298,10 +241,9 @@ function takeLastNReadings(series, n = DISPLAY_POINT_COUNT) {
         out.push({ ts: sorted[i].ts, v });
     }
 
-    return out.reverse(); // reverse to ascending time order (left->right)
+    return out.reverse();
 }
 
-{/* Change to False to disable Dummy Data */ }
 const USE_DUMMY = false;
 
 const BACKEND_LOC_NAME = {
@@ -312,10 +254,10 @@ const BACKEND_LOC_NAME = {
     "back": "back",
 };
 
-const DUMMY_TYPES = ["humidity", "vibration", "pressure"];
+const DUMMY_TYPES = ["temperature", "vibration", "pressure"];
 
 const DUMMY_VALUE = {
-    humidity: { base: 35, amp: 4.5, period: 18, noise: 0.25, spike: 2.5 },
+    temperature: { base: 35, amp: 4.5, period: 18, noise: 0.25, spike: 2.5 },
     vibration: { base: 2.0, amp: 1.6, period: 14, noise: 0.08, spike: 0.6 },
     pressure: { base: 110, amp: 22, period: 22, noise: 1.0, spike: 6 },
 };
@@ -355,7 +297,7 @@ function createDummyState() {
 }
 
 function dummyValueAt(sensor, ts, start) {
-    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.humidity;
+    const cfg = DUMMY_VALUE[sensor.type] ?? DUMMY_VALUE.temperature;
     const t = (ts - start) / 1000;
     const noise = (Math.random() * 2 - 1) * cfg.noise;
     let v = cfg.base + cfg.amp * Math.sin(t / cfg.period + sensor.phase) + noise;
@@ -373,6 +315,7 @@ function generateDummyReadings(state) {
         s.history.push({ ts: now, v });
         while (s.history.length > state.historyLen) s.history.shift();
     });
+
     const readings = [];
     state.sensors.forEach((s) => {
         s.history.forEach((p) => {
@@ -404,11 +347,6 @@ export default function DetailPage() {
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
 
-    // Manual Y-axis bounds (leave empty for auto)
-    const [yMinInput, setYMinInput] = useState("");
-    const [yMaxInput, setYMaxInput] = useState("");
-
-    // measure chart container width so we can make chart wider + keep responsive
     useEffect(() => {
         const el = chartScrollRef.current;
         if (!el) return;
@@ -444,16 +382,10 @@ export default function DetailPage() {
             });
             return data;
         };
+
         const normalizeLocation = (locName) => {
             const key = String(locName || "").trim().toLowerCase();
             return LOCATION_MAP_BACKEND[key] || null;
-        };
-
-        const resolveFrontendType = (backendType) => {
-            const hit = Object.keys(SENSOR_META).find(
-                (k) => SENSOR_META[k].backendType === backendType
-            );
-            return hit || sensorKey;
         };
 
         const resolveSensorNum = (externalId) => {
@@ -475,9 +407,16 @@ export default function DetailPage() {
                     if (!dummyRef.current) dummyRef.current = createDummyState();
                     readings = generateDummyReadings(dummyRef.current);
                 } else {
-                    const res = await fetch(`${API_BASE}/sensor-reading`);
+                    const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                    url.searchParams.set("sensorType", meta.backendType);
+                    url.searchParams.set("page", "1");
+                    url.searchParams.set("limit", "300");
+
+                    const res = await fetch(url.toString());
                     if (!res.ok) throw new Error("Failed to fetch data");
-                    readings = await res.json();
+
+                    const json = await res.json();
+                    readings = Array.isArray(json?.data) ? json.data : [];
                 }
 
                 const data = initShape();
@@ -487,13 +426,11 @@ export default function DetailPage() {
                     const frontendLoc = normalizeLocation(backendLoc);
 
                     const backendType = r?.sensor?.sensorType?.name;
-                    const frontendType = resolveFrontendType(backendType);
-
                     const sensorNum = resolveSensorNum(r?.sensor?.externalId);
                     const value = r?.value != null ? Number(r.value) : null;
 
                     if (!frontendLoc) return;
-                    if (frontendType !== sensorKey) return;
+                    if (backendType !== meta.backendType) return;
                     if (!Number.isFinite(sensorNum)) return;
                     if (value == null || !Number.isFinite(value)) return;
                     if (!data[frontendLoc]?.series?.[sensorNum]) return;
@@ -503,7 +440,6 @@ export default function DetailPage() {
 
                     data[frontendLoc].series[sensorNum].push({ ts, v: value });
 
-                    // ✅ current = value with most recent timestamp
                     const prevTs = data[frontendLoc].currentTs?.[sensorNum] ?? -Infinity;
                     if (ts >= prevTs) {
                         data[frontendLoc].currentTs[sensorNum] = ts;
@@ -511,10 +447,19 @@ export default function DetailPage() {
                     }
                 });
 
+                PARTS.forEach((part) => {
+                    const count = PART_SENSOR_COUNT[part] ?? 2;
+                    for (let i = 1; i <= count; i++) {
+                        if (Array.isArray(data[part]?.series?.[i])) {
+                            data[part].series[i].sort((a, b) => a.ts - b.ts);
+                        }
+                    }
+                });
+
                 setSensorData(data);
                 setLoading(false);
             } catch (err) {
-                console.error("Error fetching:", err);
+                console.error("Error fetching data:", err);
                 setLoading(false);
             }
         };
@@ -522,11 +467,9 @@ export default function DetailPage() {
         fetchData();
         const interval = setInterval(fetchData, 3000);
         return () => clearInterval(interval);
-    }, [sensorKey]);
-
+    }, [sensorKey, meta.backendType]);
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
-
     const activeBlock = sensorData[activePart] || { series: {}, current: {} };
 
     useEffect(() => {
@@ -540,7 +483,6 @@ export default function DetailPage() {
     const { displaySeries, xDomain, displayTicks, tickPoints } = useMemo(() => {
         const lastN = takeLastNReadings(chartSeries, DISPLAY_POINT_COUNT);
 
-        // ensure ascending order by timestamp before assigning index x
         const ordered = [...lastN].sort((a, b) => a.ts - b.ts);
 
         const base = ordered.map((p, i) => ({
@@ -577,7 +519,6 @@ export default function DetailPage() {
             const curOk = Number.isFinite(curV);
             const prevOk = Number.isFinite(prevV);
 
-            // insert crossing point between prev and cur (in x space)
             if (prev && prevOk && curOk) {
                 const a = prevV - threshold;
                 const b = curV - threshold;
@@ -595,7 +536,6 @@ export default function DetailPage() {
                         below: threshold,
                         above: threshold,
                         isCross: true,
-                        // for tooltip/time label: interpolate time based on srcTs
                         srcTs:
                             Number.isFinite(prev?.srcTs) && Number.isFinite(cur?.srcTs)
                                 ? prev.srcTs + ratio * (cur.srcTs - prev.srcTs)
@@ -620,7 +560,6 @@ export default function DetailPage() {
 
     const chartWidth = useMemo(() => {
         const containerW = Number(chartContainerW) || 0;
-        // No horizontal scroll: chart always matches container width
         return containerW > 0 ? containerW : 640;
     }, [chartContainerW]);
 
@@ -646,7 +585,6 @@ export default function DetailPage() {
     }, [displaySeries, threshold]);
 
     const finalYDomain = useMemo(() => {
-        // 1) if there's a fixed range from meta -> lock it
         const yr = meta?.yRange;
         if (Array.isArray(yr) && yr.length === 2) {
             const a = Number(yr[0]);
@@ -655,15 +593,12 @@ export default function DetailPage() {
                 return a <= b ? [a, b] : [b, a];
             }
         }
-
-        // 2) fallback: auto domain (already calculated)
         return yDomain;
     }, [meta, yDomain]);
 
     return (
         <div className="min-h-dvh bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
             <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4 sm:gap-6 min-h-dvh">
-                {/* HEADER */}
                 <div className="neo-surface p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
                         <div className="text-sm text-slate-500 flex items-center gap-2">
@@ -689,9 +624,7 @@ export default function DetailPage() {
                     </div>
                 </div>
 
-                {/* MAIN AREA */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 flex-1 min-h-0">
-                    {/* LEFT: mannequin */}
                     <section className="lg:col-span-4 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
                         <div className="text-[12px] text-slate-500 mb-3 text-center">
                             Click mannequin / location card to focus the graph. Select sensor tab to view specific sensor.
@@ -726,7 +659,6 @@ export default function DetailPage() {
                         </div>
                     </section>
 
-                    {/* RIGHT: chart + sensor navigation */}
                     <section className="lg:col-span-8 neo-surface p-4 sm:p-6 flex flex-col min-h-0">
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div>
@@ -734,7 +666,7 @@ export default function DetailPage() {
                                     Graph – {PART_LABEL[activePart]}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                    Back: 4 sensors • Hands/Legs: 2 sensors
+                                    Back: 4 sensors • Hands: 2 sensors • Legs: 3 sensors
                                 </div>
                             </div>
 
@@ -743,7 +675,6 @@ export default function DetailPage() {
                             </div>
                         </div>
 
-                        {/* Tabs sensor */}
                         <div className="mt-4">
                             <SensorTabs
                                 count={sensorCount}
@@ -752,13 +683,11 @@ export default function DetailPage() {
                             />
                         </div>
 
-                        {/* Chart */}
                         <div className="neo-inset p-4 mt-4 flex-1 min-h-[280px] sm:min-h-0">
                             <div className="font-semibold text-slate-800 mb-2">
                                 Sensor {activeSensorId} – {meta.label} ({meta.unit})
                             </div>
 
-                            {/* X made wider and can scroll horizontally */}
                             <div ref={chartScrollRef} className="w-full h-[320px] overflow-y-hidden">
                                 <div style={{ width: chartWidth, height: "320px" }}>
                                     <LineChart width={chartWidth} height={320} data={displaySeries} margin={{ top: 8, right: 16, left: 0, bottom: 32 }}>
@@ -772,7 +701,7 @@ export default function DetailPage() {
                                             tickLine={true}
                                             height={40}
                                             tick={({ x, y, payload }) => {
-                                                const idx = payload?.value; // 0..6
+                                                const idx = payload?.value;
                                                 const ts = tickPoints?.[idx]?.srcTs;
                                                 return <SimpleTimeTick x={x} y={y} payload={{ value: ts }} />;
                                             }}
@@ -833,7 +762,6 @@ export default function DetailPage() {
                     </section>
                 </div>
 
-                {/* LOCATION BAR */}
                 <div className="neo-surface p-3 sm:p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
                         {PARTS.map((id) => (
