@@ -337,6 +337,8 @@ function generateDummyReadings(state) {
 export default function DetailPage() {
     const dummyRef = useRef(null);
     const chartScrollRef = useRef(null);
+    const isFetchingRef = useRef(false);
+
     const { sensorKey } = useParams();
     const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
     const { Icon } = meta;
@@ -400,6 +402,9 @@ export default function DetailPage() {
         };
 
         const fetchData = async () => {
+            if (isFetchingRef.current) return;
+            isFetchingRef.current = true;
+
             try {
                 let readings = [];
 
@@ -410,9 +415,9 @@ export default function DetailPage() {
                     const url = new URL(`${API_BASE}/sensor-reading/paginated`);
                     url.searchParams.set("sensorType", meta.backendType);
                     url.searchParams.set("page", "1");
-                    url.searchParams.set("limit", "300");
+                    url.searchParams.set("limit", "120");
 
-                    const res = await fetch(url.toString());
+                    const res = await fetch(url.toString(), { cache: "no-store" });
                     if (!res.ok) throw new Error("Failed to fetch data");
 
                     const json = await res.json();
@@ -461,12 +466,18 @@ export default function DetailPage() {
             } catch (err) {
                 console.error("Error fetching data:", err);
                 setLoading(false);
+            } finally {
+                isFetchingRef.current = false;
             }
         };
 
         fetchData();
-        const interval = setInterval(fetchData, 3000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchData, 1000);
+
+        return () => {
+            clearInterval(interval);
+            isFetchingRef.current = false;
+        };
     }, [sensorKey, meta.backendType]);
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
