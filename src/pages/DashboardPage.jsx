@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
-import { Thermometer, Waves, Gauge, ChevronRight } from "lucide-react";
+import { Thermometer, Waves, Gauge, ChevronRight, Wifi, WifiOff } from "lucide-react";
+import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 
 const SENSOR_TYPES = [
     {
@@ -158,30 +159,44 @@ export default function DashboardPage() {
     const nav = useNavigate();
     const [summary, setSummary] = useState(EMPTY_SUMMARY);
     const [loading, setLoading] = useState(true);
+    const { isConnected, latestData } = useSensorWebSocket();
 
+    // Process WebSocket data into summary format
+    useEffect(() => {
+        const nextSummary = SENSOR_TYPES.reduce((acc, sensor) => {
+            // Try to find data from websocket
+            const keys = Object.keys(latestData);
+            const sensorData = keys
+                .filter((k) => k.startsWith(`${sensor.backendType}-`))
+                .map((k) => latestData[k])
+                .filter((d) => d?.value !== null && d?.value !== undefined)
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+            acc[sensor.key] = buildRealtimeSummary(sensorData);
+            return acc;
+        }, {});
+
+        setSummary(nextSummary);
+        if (loading) setLoading(false);
+    }, [latestData]);
+
+    // Fallback: fetch initial data via HTTP if WebSocket hasn't received data yet
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
         let isCancelled = false;
-        let isFetching = false;
 
-        const fetchData = async () => {
-            if (isFetching) return;
-            isFetching = true;
-
+        const fetchInitial = async () => {
             try {
-                // Fetch latest readings per sensor type from backend
                 const url = new URL(`${API_BASE}/sensor-reading/latest`);
                 const res = await fetch(url.toString(), { cache: "no-store" });
 
                 if (!res.ok) {
-                    throw new Error("Failed to fetch latest readings");
+                    throw new Error(`Failed to fetch: ${res.status}`);
                 }
 
                 const data = await res.json();
-
                 if (isCancelled) return;
 
-                // Map backend data to frontend summary
                 const nextSummary = SENSOR_TYPES.reduce((acc, sensor) => {
                     const sensorData = data.find(
                         (item) => item.sensorType === sensor.backendType
@@ -192,26 +207,14 @@ export default function DashboardPage() {
 
                 setSummary(nextSummary);
             } catch (err) {
-                console.error("Error fetching dashboard data:", err);
-
-                if (!isCancelled) {
-                    setSummary(EMPTY_SUMMARY);
-                }
+                console.error("Error fetching initial data:", err);
             } finally {
-                if (!isCancelled) {
-                    setLoading(false);
-                }
-                isFetching = false;
+                if (!isCancelled) setLoading(false);
             }
         };
 
-        fetchData();
-        const interval = setInterval(fetchData, 3000);
-
-        return () => {
-            isCancelled = true;
-            clearInterval(interval);
-        };
+        fetchInitial();
+        return () => { isCancelled = true; };
     }, []);
 
     return (
@@ -220,11 +223,26 @@ export default function DashboardPage() {
                 <div className="neo-surface p-4 sm:p-6 rounded-2xl">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-semibold text-slate-900 truncate">
-                                Smart Skin Dashboard
+                            <div className="flex items-center gap-3">
+                                <div className="text-2xl sm:text-3xl font-semibold text-slate-900 truncate">
+                                    Smart Skin Dashboard
+                                </div>
+                                <div className="flex items-center gap-1 px-2 py-1 neo-inset rounded-lg text-xs">
+                                    {isConnected ? (
+                                        <>
+                                            <Wifi size={14} className="text-emerald-600" />
+                                            <span className="text-emerald-600 font-medium">Live</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <WifiOff size={14} className="text-orange-600" />
+                                            <span className="text-orange-600 font-medium">Connecting...</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                             <div className="mt-1 text-sm text-slate-500 max-w-3xl">
-                                Select <b>sensor type</b> to view trends and details per body location (mannequin).
+                                Real-time sensor data via WebSocket. Select <b>sensor type</b> to view details.
                             </div>
                         </div>
 
