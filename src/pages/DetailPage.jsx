@@ -18,7 +18,7 @@ import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
 const SENSOR_META = {
     temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 26, yRange: [0, 80] },
     vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 3, yRange: [0, 3.3] },
-    press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 18, yRange: [0, 20] },
+    press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 18, yRange: [0, 26] },
 };
 
 const PART_LABEL = {
@@ -82,6 +82,33 @@ function fmtHHmmss(ts) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
+}
+
+function fmtTimeOnly(ts) {
+    if (!Number.isFinite(ts)) return "-";
+    const d = new Date(ts);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+}
+
+function getLatestTimestampFromSensorData(sensorData) {
+    let latest = -Infinity;
+
+    for (const part of PARTS) {
+        const block = sensorData?.[part];
+        if (!block?.currentTs) continue;
+
+        for (const value of Object.values(block.currentTs)) {
+            const ts = Number(value);
+            if (Number.isFinite(ts) && ts > latest) {
+                latest = ts;
+            }
+        }
+    }
+
+    return Number.isFinite(latest) ? latest : null;
 }
 
 const SimpleTimeTick = ({ x, y, payload }) => {
@@ -343,6 +370,7 @@ export default function DetailPage() {
     const [sensorData, setSensorData] = useState(createEmptyDataShape);
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
+    const [nowTs, setNowTs] = useState(0);
 
     useEffect(() => {
         const el = chartScrollRef.current;
@@ -354,6 +382,14 @@ export default function DetailPage() {
         });
         ro.observe(el);
         return () => ro.disconnect();
+    }, []);
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setNowTs(Date.now());
+        }, 1000);
+
+        return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
@@ -485,9 +521,33 @@ export default function DetailPage() {
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
     const activeBlock = sensorData[activePart] || createEmptyPart(activePart);
 
+    const safeActiveSensorId =
+        activeSensorId >= 1 && activeSensorId <= sensorCount ? activeSensorId : 1;
 
-    const chartSeries = activeBlock.series?.[activeSensorId] || [];
-    const currentValue = activeBlock.current?.[activeSensorId] ?? 0;
+    const latestActiveTs = useMemo(() => {
+        return getLatestTimestampFromSensorData(sensorData);
+    }, [sensorData]);
+
+    const msSinceLastActive = latestActiveTs ? nowTs - latestActiveTs : Infinity;
+
+    const liveStatus = useMemo(() => {
+        if (!latestActiveTs) {
+            return { label: "NO DATA", tone: "warn" };
+        }
+
+        if (msSinceLastActive <= 5000) {
+            return { label: "ACTIVE", tone: "ok" };
+        }
+
+        if (msSinceLastActive <= 15000) {
+            return { label: "DELAY", tone: "warn" };
+        }
+
+        return { label: "OFFLINE", tone: "danger" };
+    }, [latestActiveTs, msSinceLastActive]);
+
+    const chartSeries = activeBlock.series?.[safeActiveSensorId] || [];
+    const currentValue = activeBlock.current?.[safeActiveSensorId] ?? 0;
     const threshold = meta.limit ?? 0;
 
     const { displaySeries, xDomain, displayTicks, tickPoints } = useMemo(() => {
@@ -570,8 +630,12 @@ export default function DetailPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                        <NeoButton>Last 1h</NeoButton>
-                        <StatusBadge tone="ok">ACTIVE</StatusBadge>
+                        <NeoButton>
+                            Last active: {latestActiveTs ? fmtTimeOnly(latestActiveTs) : "-"}
+                        </NeoButton>
+                        <StatusBadge tone={liveStatus.tone}>
+                            {liveStatus.label}
+                        </StatusBadge>
                     </div>
                 </div>
 
@@ -586,7 +650,10 @@ export default function DetailPage() {
                                 <MannequinHotspotSVG
                                     className="absolute inset-0 w-full h-full"
                                     activePart={activePart}
-                                    onClickPart={setActivePart}
+                                    onClickPart={(part) => {
+                                        setActivePart(part);
+                                        setActiveSensorId(1);
+                                    }}
                                     onHoverPart={() => { }}
                                     onLeavePart={() => { }}
                                 />
@@ -600,7 +667,7 @@ export default function DetailPage() {
                             </div>
 
                             <div className="text-sm text-slate-600">
-                                {loading ? "Loading..." : <>S{activeSensorId}: {fmt(currentValue)} {meta.unit}</>}
+                                {loading ? "Loading..." : <>S{safeActiveSensorId}: {fmt(currentValue)} {meta.unit}</>}
                             </div>
                         </div>
                     </section>
@@ -624,14 +691,14 @@ export default function DetailPage() {
                         <div className="mt-4">
                             <SensorTabs
                                 count={sensorCount}
-                                activeId={activeSensorId}
+                                activeId={safeActiveSensorId}
                                 onChange={setActiveSensorId}
                             />
                         </div>
 
                         <div className="neo-inset p-4 mt-4 flex-1 min-h-[280px] sm:min-h-0">
                             <div className="font-semibold text-slate-800 mb-2">
-                                Sensor {activeSensorId} – {meta.label} ({meta.unit})
+                                Sensor {safeActiveSensorId} – {meta.label} ({meta.unit})
                             </div>
 
                             <div ref={chartScrollRef} className="w-full h-[320px] overflow-y-hidden">
@@ -686,7 +753,7 @@ export default function DetailPage() {
                                             type="monotone"
                                             dataKey="below"
                                             strokeWidth={2}
-                                            stroke={SENSOR_COLOR[activeSensorId] || "#10b981"}
+                                            stroke={SENSOR_COLOR[safeActiveSensorId] || "#10b981"}
                                             dot={<DotWithValue />}
                                             connectNulls={false}
                                             isAnimationActive={false}
@@ -719,7 +786,10 @@ export default function DetailPage() {
                                     count={PART_SENSOR_COUNT[id] ?? 2}
                                     active={activePart === id}
                                     threshold={threshold}
-                                    onClick={() => setActivePart(id)}
+                                    onClick={() => {
+                                        setActivePart(id);
+                                        setActiveSensorId(1);
+                                    }}
                                 />
                             </div>
                         ))}
