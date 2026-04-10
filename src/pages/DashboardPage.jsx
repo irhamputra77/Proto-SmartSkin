@@ -33,24 +33,13 @@ const SENSOR_TYPES = [
     },
 ];
 
-const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
-
-const PART_TO_BACKEND_LOCATION = {
-    "right-arm": "right_arm",
-    "left-arm": "left_arm",
-    "right-leg": "right_leg",
-    "left-leg": "left_leg",
-    back: "back",
-};
-
-const FETCH_LIMIT_PER_PART = 21;
-
 const EMPTY_SUMMARY = SENSOR_TYPES.reduce((acc, sensor) => {
-    acc[sensor.key] = { min: 0, max: 0, avg: 0, status: "warn" };
+    acc[sensor.key] = { value: null, timestamp: null, status: "warn" };
     return acc;
 }, {});
 
 function fmt(v) {
+    if (v === null || v === undefined) return "0";
     const value = Number(v);
     if (!Number.isFinite(value)) return "0";
     return Number.isInteger(value) ? String(value) : value.toFixed(2);
@@ -62,21 +51,37 @@ function toneLabel(tone) {
     return tone.toUpperCase();
 }
 
-function buildSummary(values) {
-    if (values.length === 0) {
-        return { min: 0, max: 0, avg: 0, status: "warn" };
+function timeAgo(timestamp) {
+    if (!timestamp) return "No data";
+    const now = new Date();
+    const then = new Date(timestamp);
+    const diffMs = now - then;
+    const diffSec = Math.floor(diffMs / 1000);
+    
+    if (diffSec < 5) return "Just now";
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}h ago`;
+    return then.toLocaleDateString();
+}
+
+function buildRealtimeSummary(latestData) {
+    if (!latestData || latestData.value === null || latestData.value === undefined) {
+        return { value: null, timestamp: null, status: "warn" };
     }
 
     return {
-        min: Math.min(...values),
-        max: Math.max(...values),
-        avg: values.reduce((total, value) => total + value, 0) / values.length,
+        value: Number(latestData.value),
+        timestamp: latestData.timestamp,
         status: "ok",
     };
 }
 
 function SensorTypeCard({ meta, summary, loading, onOpen }) {
     const { Icon } = meta;
+    const hasData = summary?.value !== null && summary?.value !== undefined;
 
     return (
         <button
@@ -118,36 +123,30 @@ function SensorTypeCard({ meta, summary, loading, onOpen }) {
                 </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 md:h-25 md:my-2">
-                <div className="neo-inset p-3 rounded-2xl md:pt-6">
-                    <div className="text-xs text-slate-500">Min</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">
-                        {loading ? "..." : fmt(summary?.min)}{" "}
-                        <span className="text-xs text-slate-500">{meta.unit}</span>
-                    </div>
+            <div className="mt-4 neo-inset p-5 rounded-2xl">
+                <div className="text-xs text-slate-500 mb-1">Latest Reading</div>
+                <div className="text-4xl font-bold text-slate-900">
+                    {loading ? "..." : hasData ? (
+                        <>
+                            {fmt(summary?.value)}{" "}
+                            <span className="text-lg text-slate-500">{meta.unit}</span>
+                        </>
+                    ) : (
+                        <>
+                            --{" "}
+                            <span className="text-lg text-slate-500">{meta.unit}</span>
+                        </>
+                    )}
                 </div>
-
-                <div className="neo-inset p-3 rounded-2xl md:pt-6">
-                    <div className="text-xs text-slate-500">Avg</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">
-                        {loading ? "..." : fmt(summary?.avg)}{" "}
-                        <span className="text-xs text-slate-500">{meta.unit}</span>
-                    </div>
-                </div>
-
-                <div className="neo-inset p-3 rounded-2xl md:pt-6">
-                    <div className="text-xs text-slate-500">Max</div>
-                    <div className="mt-1 text-lg font-semibold text-slate-900">
-                        {loading ? "..." : fmt(summary?.max)}{" "}
-                        <span className="text-xs text-slate-500">{meta.unit}</span>
-                    </div>
+                <div className="mt-2 text-xs text-slate-500">
+                    Updated: {loading ? "..." : timeAgo(summary?.timestamp)}
                 </div>
             </div>
 
             <div className="mt-4 flex items-center justify-between gap-3">
                 <div className="text-sm text-slate-600">
                     {loading
-                        ? "Loading latest data from all body locations..."
+                        ? "Loading latest data..."
                         : <>Click to view <b>{meta.label}</b> details per body location.</>}
                 </div>
             </div>
@@ -170,53 +169,24 @@ export default function DashboardPage() {
             isFetching = true;
 
             try {
-                const requests = SENSOR_TYPES.flatMap((sensor) =>
-                    PARTS.map(async (part) => {
-                        const url = new URL(`${API_BASE}/sensor-reading/paginated`);
-                        url.searchParams.set("sensorType", sensor.backendType);
-                        url.searchParams.set("location", PART_TO_BACKEND_LOCATION[part]);
-                        url.searchParams.set("page", "1");
-                        url.searchParams.set("limit", String(FETCH_LIMIT_PER_PART));
+                // Fetch latest readings per sensor type from backend
+                const url = new URL(`${API_BASE}/sensor-reading/latest`);
+                const res = await fetch(url.toString(), { cache: "no-store" });
 
-                        const res = await fetch(url.toString(), {
-                            cache: "no-store",
-                        });
+                if (!res.ok) {
+                    throw new Error("Failed to fetch latest readings");
+                }
 
-                        if (!res.ok) {
-                            throw new Error(`Failed to fetch ${sensor.key} at ${part}`);
-                        }
-
-                        const json = await res.json();
-                        return {
-                            key: sensor.key,
-                            readings: Array.isArray(json?.data) ? json.data : [],
-                        };
-                    })
-                );
-
-                const results = await Promise.allSettled(requests);
+                const data = await res.json();
 
                 if (isCancelled) return;
 
-                const groupedValues = SENSOR_TYPES.reduce((acc, sensor) => {
-                    acc[sensor.key] = [];
-                    return acc;
-                }, {});
-
-                results.forEach((result) => {
-                    if (result.status !== "fulfilled") return;
-
-                    const { key, readings } = result.value;
-                    readings.forEach((reading) => {
-                        const value = reading?.value != null ? Number(reading.value) : null;
-                        if (Number.isFinite(value)) {
-                            groupedValues[key].push(value);
-                        }
-                    });
-                });
-
+                // Map backend data to frontend summary
                 const nextSummary = SENSOR_TYPES.reduce((acc, sensor) => {
-                    acc[sensor.key] = buildSummary(groupedValues[sensor.key]);
+                    const sensorData = data.find(
+                        (item) => item.sensorType === sensor.backendType
+                    );
+                    acc[sensor.key] = buildRealtimeSummary(sensorData || { value: null, timestamp: null });
                     return acc;
                 }, {});
 
