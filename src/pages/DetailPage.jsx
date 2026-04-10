@@ -66,8 +66,9 @@ const SENSOR_COLOR = {
     4: "#10b981",
 };
 
-const DISPLAY_POINT_COUNT = 7;
-const FETCH_LIMIT_PER_PART = 21;
+const DISPLAY_POINT_COUNT = 7;   // jumlah titik yang ditampilkan pada chart
+const MAX_STORED_POINTS = 600;   // jumlah maksimal histori yang disimpan di frontend per sensor
+const FETCH_LIMIT_PER_PART = 21; // jumlah data per request dari backend
 
 function fmt(v) {
     const n = Number(v);
@@ -280,7 +281,7 @@ function createEmptyDataShape() {
     return data;
 }
 
-function mergePointIntoSeries(prevSeries = [], nextPoint, maxPoints = DISPLAY_POINT_COUNT) {
+function mergePointIntoSeries(prevSeries = [], nextPoint, maxPoints = MAX_STORED_POINTS) {
     if (!Number.isFinite(nextPoint?.ts) || !Number.isFinite(nextPoint?.v)) return prevSeries;
 
     const merged = [...prevSeries, nextPoint]
@@ -480,7 +481,7 @@ export default function DetailPage() {
                                 nextPart.series[sensorNum] = mergePointIntoSeries(
                                     nextPart.series[sensorNum],
                                     { ts, v: value },
-                                    DISPLAY_POINT_COUNT
+                                    MAX_STORED_POINTS
                                 );
 
                                 const prevTs = nextPart.currentTs[sensorNum] ?? -Infinity;
@@ -546,7 +547,7 @@ export default function DetailPage() {
         return { label: "OFFLINE", tone: "danger" };
     }, [latestActiveTs, msSinceLastActive]);
 
-    const chartSeries = activeBlock.series?.[safeActiveSensorId] || [];
+    const chartSeries = (activeBlock.series?.[safeActiveSensorId] || []).slice(-DISPLAY_POINT_COUNT);
     const currentValue = activeBlock.current?.[safeActiveSensorId] ?? 0;
     const threshold = meta.limit ?? 0;
 
