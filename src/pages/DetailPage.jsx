@@ -366,6 +366,7 @@ export default function DetailPage() {
     const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
     const { Icon } = meta;
 
+    const [mannequinId, setMannequinId] = useState(1);
     const [activePart, setActivePart] = useState("back");
     const [activeSensorId, setActiveSensorId] = useState(1);
     const [sensorData, setSensorData] = useState(createEmptyDataShape);
@@ -416,6 +417,7 @@ export default function DetailPage() {
                     url.searchParams.set("location", PART_TO_BACKEND_LOCATION[part]);
                     url.searchParams.set("page", "1");
                     url.searchParams.set("limit", String(FETCH_LIMIT_PER_PART));
+                    url.searchParams.set("mannequin_id", String(mannequinId));
 
                     const res = await fetch(url.toString(), {
                         cache: "no-store",
@@ -517,7 +519,7 @@ export default function DetailPage() {
             clearInterval(interval);
             abortAll();
         };
-    }, [sensorKey, meta.backendType]);
+    }, [sensorKey, meta.backendType, mannequinId]);
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
     const activeBlock = sensorData[activePart] || createEmptyPart(activePart);
@@ -631,6 +633,18 @@ export default function DetailPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                        <select
+                            value={mannequinId}
+                            onChange={(e) => {
+                                setMannequinId(Number(e.target.value));
+                                setSensorData(createEmptyDataShape);
+                                setLoading(true);
+                            }}
+                            className="neo-inset px-3 py-2 rounded-xl text-sm font-medium text-slate-700 outline-none cursor-pointer"
+                        >
+                            <option value={1}>Mannequin 1</option>
+                            <option value={2}>Mannequin 2</option>
+                        </select>
                         <NeoButton>
                             Last active: {latestActiveTs ? fmtTimeOnly(latestActiveTs) : "-"}
                         </NeoButton>

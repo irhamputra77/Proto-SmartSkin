@@ -158,6 +158,7 @@ export default function DashboardPage() {
     const nav = useNavigate();
     const [summary, setSummary] = useState(EMPTY_SUMMARY);
     const [loading, setLoading] = useState(true);
+    const [mannequinId, setMannequinId] = useState(1);
 
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
@@ -169,8 +170,8 @@ export default function DashboardPage() {
             isFetching = true;
 
             try {
-                // Fetch latest readings per sensor type from backend
                 const url = new URL(`${API_BASE}/sensor-reading/latest`);
+                url.searchParams.set("mannequin_id", String(mannequinId));
                 const res = await fetch(url.toString(), { cache: "no-store" });
 
                 if (!res.ok) {
@@ -212,7 +213,7 @@ export default function DashboardPage() {
             isCancelled = true;
             clearInterval(interval);
         };
-    }, []);
+    }, [mannequinId]);
 
     return (
         <div className="min-h-[100dvh] bg-[#e9eef3] p-3 sm:p-6">
@@ -228,13 +229,27 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        <div className="neo-inset p-3 rounded-2xl shrink-0">
-                            <img
-                                src="/Logo.png"
-                                alt="STAS RG"
-                                className="h-10 sm:h-12 w-auto object-contain"
-                                draggable={false}
-                            />
+                        <div className="flex items-center gap-3 shrink-0">
+                            <select
+                                value={mannequinId}
+                                onChange={(e) => {
+                                    setMannequinId(Number(e.target.value));
+                                    setSummary(EMPTY_SUMMARY);
+                                    setLoading(true);
+                                }}
+                                className="neo-inset px-3 py-2 rounded-xl text-sm font-medium text-slate-700 outline-none cursor-pointer"
+                            >
+                                <option value={1}>Mannequin 1</option>
+                                <option value={2}>Mannequin 2</option>
+                            </select>
+                            <div className="neo-inset p-3 rounded-2xl">
+                                <img
+                                    src="/Logo.png"
+                                    alt="STAS RG"
+                                    className="h-10 sm:h-12 w-auto object-contain"
+                                    draggable={false}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
