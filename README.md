@@ -52,7 +52,17 @@ Marketing page. No API calls. Static content only.
 
 ### `/dashboard` — Dashboard Page (`src/pages/DashboardPage.jsx`)
 
-Displays the latest reading for each of the 3 sensor types (Temperature, Pressure, Vibration).
+Displays the latest reading for each of the 5 sensor types.
+
+**Sensor cards:**
+
+| Key | Label | Unit | Hardware | Locations |
+|-----|-------|------|----------|-----------|
+| `temp` | Temperature | °C | MCP9808 | Arm, Back, Leg |
+| `press` | Pressure | N | FSR RP-S40-ST | Arm, Back, Leg |
+| `vib` | Vibration | V | Piezoelectric | Arm, Back, Leg |
+| `flex` | Flex | Ω | Flex Sensor | Elbow, Knee |
+| `strain` | Strain | µε | Strain Gauge | Elbow, Knee |
 
 **API call:**
 ```
@@ -69,16 +79,33 @@ GET /sensor-reading/latest?mannequin_id={id}
 | Variable | Type | Description |
 |---|---|---|
 | `mannequinId` | number | Active mannequin (1 or 2) |
-| `summary` | object | Latest values per sensor type |
+| `summary` | object | Latest values per sensor type (5 keys) |
 | `loading` | boolean | True until first fetch completes |
 
 ---
 
 ### `/sensor/:sensorKey` — Detail Page (`src/pages/DetailPage.jsx`)
 
-Time-series chart view for one sensor type across all 5 body locations.
+Time-series chart view for one sensor type across its body locations.
 
-`sensorKey` values: `temp`, `press`, `vib`
+`sensorKey` values: `temp`, `press`, `vib`, `flex`, `strain`
+
+**Locations per sensor type:**
+
+| sensorKey | Body parts | Sensor points |
+|-----------|-----------|---------------|
+| `temp`, `press`, `vib` | left arm, right arm, back, left leg, right leg | 2 / 2 / 4 / 3 / 3 |
+| `flex`, `strain` | left elbow, right elbow, left knee, right knee | 1 each |
+
+**Threshold / warning line:**
+
+| sensorKey | Warning line value |
+|-----------|--------------------|
+| `temp` | 38 °C |
+| `press` | 70 N |
+| `vib` | 3 V |
+| `flex` | 105 000 Ω |
+| `strain` | 20 000 µε |
 
 **API call:**
 ```
@@ -86,17 +113,19 @@ GET /sensor-reading/paginated?sensorType={type}&location={loc}&page=1&limit=21&m
 ```
 
 **Behavior:**
-- Polls every **1 second**, fetching all 5 body parts in parallel (`Promise.allSettled`)
+- Polls every **1 second**, fetching all active parts in parallel (`Promise.allSettled`)
 - Mannequin selector dropdown (top-right) — same as Dashboard, resets chart data on switch
 - Click a body part on the mannequin SVG → focuses that part's chart
-- Tabs at the bottom of the chart → switch between sensor point numbers (1–4)
+- Tabs at the bottom of the chart → switch between sensor point numbers
+- MannequinSVG shows only hotspots relevant to the active sensor type
 - Live status badge: **ACTIVE** (≤5s), **DELAY** (≤15s), **OFFLINE** (>15s), **NO DATA**
 
 **State:**
 | Variable | Type | Description |
 |---|---|---|
 | `mannequinId` | number | Active mannequin (1 or 2) |
-| `activePart` | string | Focused body part (e.g. `"back"`) |
+| `parts` | string[] | Active location set derived from `sensorKey` |
+| `activePart` | string | Focused body part (defaults to first in `parts`) |
 | `activeSensorId` | number | Focused sensor point number |
 | `sensorData` | object | Time-series data per part and sensor point |
 | `loading` | boolean | True until first fetch completes |
@@ -107,14 +136,21 @@ GET /sensor-reading/paginated?sensorType={type}&location={loc}&page=1&limit=21&m
 
 ### `src/components/MannequinSVG.jsx`
 
-Interactive SVG of the mannequin back with 5 clickable hotspots. Highlights the active body part. No API calls — pure UI.
+Interactive SVG of the mannequin back with up to 9 clickable hotspots. Highlights the active body part. No API calls — pure UI.
+
+**Hotspots (all 9):** back, left arm, right arm, left leg, right leg, left elbow, right elbow, left knee, right knee
 
 **Props:**
-| Prop | Type | Description |
-|---|---|---|
-| `activePart` | string | Currently focused part |
-| `onPartClick` | function | Called with part key when hotspot clicked |
-| `imageHref` | string | URL of mannequin background image |
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `activePart` | string | — | Currently focused part |
+| `visibleParts` | string[] \| null | `null` | Parts to render; `null` = show all 9 |
+| `onClickPart` | function | — | Called with part key when hotspot clicked |
+| `onHoverPart` | function | — | Called on mouse enter |
+| `onLeavePart` | function | — | Called on mouse leave |
+| `imageHref` | string | `/mannequin-back.png` | URL of mannequin background image |
+
+DetailPage passes `visibleParts={parts}` so only relevant hotspots are shown per sensor type (e.g. flex/strain shows only elbows/knees).
 
 ---
 
@@ -138,7 +174,7 @@ Neumorphic-styled button. Used for the "Last active" timestamp display on Detail
 /                   → LandingPage
 /dashboard          → DashboardPage
 /dashboard/:sensor  → DashboardPage (param unused — reserved)
-/sensor/:sensorKey  → DetailPage  (sensorKey: temp | press | vib)
+/sensor/:sensorKey  → DetailPage  (sensorKey: temp | press | vib | flex | strain)
 ```
 
 ---
@@ -175,6 +211,16 @@ DetailPage → recharts line chart
 
 ## Changelog
 
+### v3.0 — Hardware Spec v2: New Sensors + Locations (May 2026)
+- Updated pressure unit `kPa` → `N`, vibration unit `g` → `V` across Dashboard and Detail pages
+- Added **Flex** sensor card (Ω) and **Strain** sensor card (µε) to DashboardPage
+- Added `flex` and `strain` entries to `SENSOR_META` with hardware-accurate limits and yRanges
+- Added 4 new body locations: left elbow, right elbow, left knee, right knee
+- `SENSOR_PARTS` mapping: `flex`/`strain` routes to elbow/knee parts; `temp`/`press`/`vib` routes to original 5 parts
+- `MannequinSVG` now accepts `visibleParts` prop — hotspots rendered = sensor type's active parts only
+- `activePart` resets to first part of active sensor type on `sensorKey` route change
+- Dashboard grid updated to accommodate 5 sensor cards
+
 ### v2.0 — Multi-Mannequin Support (May 2026)
 - Added mannequin selector dropdown to DashboardPage and DetailPage
 - All API calls now include `mannequin_id` query parameter
@@ -190,4 +236,4 @@ DetailPage → recharts line chart
 
 ---
 
-**Last Updated:** May 6, 2026
+**Last Updated:** May 8, 2026

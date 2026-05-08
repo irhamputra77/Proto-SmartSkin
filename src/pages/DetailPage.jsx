@@ -13,50 +13,80 @@ import {
     ReferenceLine,
     Label
 } from "recharts";
-import { ChevronLeft, Thermometer, Waves, Gauge, MapPin } from "lucide-react";
+import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity } from "lucide-react";
 
 const SENSOR_META = {
-    temp: { label: "Temperature", unit: "°C", Icon: Thermometer, backendType: "temperature", limit: 26, yRange: [0, 80] },
-    vib: { label: "Vibration", unit: "g", Icon: Waves, backendType: "vibration", limit: 3, yRange: [0, 3.3] },
-    press: { label: "Pressure", unit: "kPa", Icon: Gauge, backendType: "pressure", limit: 18, yRange: [0, 26] },
+    temp:   { label: "Temperature", unit: "°C", Icon: Thermometer,    backendType: "temperature", limit: 38,     yRange: [0, 55]     },
+    press:  { label: "Pressure",    unit: "N",  Icon: Gauge,           backendType: "pressure",    limit: 70,     yRange: [0, 105]    },
+    vib:    { label: "Vibration",   unit: "V",  Icon: Waves,           backendType: "vibration",   limit: 3,      yRange: [0, 3.5]    },
+    flex:   { label: "Flex",        unit: "Ω",  Icon: ArrowLeftRight,  backendType: "flex",        limit: 105000, yRange: [0, 130000] },
+    strain: { label: "Strain",      unit: "µε", Icon: Activity,        backendType: "strain",      limit: 20000,  yRange: [0, 22000]  },
 };
 
 const PART_LABEL = {
-    "right-arm": "Right Hand",
-    "left-arm": "Left Hand",
-    "right-leg": "Right Leg",
-    "left-leg": "Left Leg",
-    back: "Back",
+    "right-arm":   "Right Hand",
+    "left-arm":    "Left Hand",
+    "right-leg":   "Right Leg",
+    "left-leg":    "Left Leg",
+    back:          "Back",
+    "right-elbow": "Right Elbow",
+    "left-elbow":  "Left Elbow",
+    "right-knee":  "Right Knee",
+    "left-knee":   "Left Knee",
 };
 
-const PARTS = ["left-arm", "right-arm", "left-leg", "right-leg", "back"];
+const SENSOR_PARTS = {
+    temp:   ["left-arm", "right-arm", "left-leg", "right-leg", "back"],
+    press:  ["left-arm", "right-arm", "left-leg", "right-leg", "back"],
+    vib:    ["left-arm", "right-arm", "left-leg", "right-leg", "back"],
+    flex:   ["left-elbow", "right-elbow", "left-knee", "right-knee"],
+    strain: ["left-elbow", "right-elbow", "left-knee", "right-knee"],
+};
+
+const ALL_PARTS = [...new Set(Object.values(SENSOR_PARTS).flat())];
 
 const PART_SENSOR_COUNT = {
-    "left-arm": 2,
-    "right-arm": 2,
-    "left-leg": 3,
-    "right-leg": 3,
-    back: 4,
+    "left-arm":    2,
+    "right-arm":   2,
+    "left-leg":    3,
+    "right-leg":   3,
+    back:          4,
+    "right-elbow": 1,
+    "left-elbow":  1,
+    "right-knee":  1,
+    "left-knee":   1,
 };
 
 const LOCATION_MAP_BACKEND = {
-    "right arm": "right-arm",
-    "left arm": "left-arm",
-    "right leg": "right-leg",
-    "left leg": "left-leg",
-    "right_arm": "right-arm",
-    "left_arm": "left-arm",
-    "right_leg": "right-leg",
-    "left_leg": "left-leg",
-    back: "back",
+    "right arm":   "right-arm",
+    "left arm":    "left-arm",
+    "right leg":   "right-leg",
+    "left leg":    "left-leg",
+    "right_arm":   "right-arm",
+    "left_arm":    "left-arm",
+    "right_leg":   "right-leg",
+    "left_leg":    "left-leg",
+    back:          "back",
+    "right elbow": "right-elbow",
+    "left elbow":  "left-elbow",
+    "right knee":  "right-knee",
+    "left knee":   "left-knee",
+    "right_elbow": "right-elbow",
+    "left_elbow":  "left-elbow",
+    "right_knee":  "right-knee",
+    "left_knee":   "left-knee",
 };
 
 const PART_TO_BACKEND_LOCATION = {
-    "right-arm": "right_arm",
-    "left-arm": "left_arm",
-    "right-leg": "right_leg",
-    "left-leg": "left_leg",
-    back: "back",
+    "right-arm":   "right_arm",
+    "left-arm":    "left_arm",
+    "right-leg":   "right_leg",
+    "left-leg":    "left_leg",
+    back:          "back",
+    "right-elbow": "right_elbow",
+    "left-elbow":  "left_elbow",
+    "right-knee":  "right_knee",
+    "left-knee":   "left_knee",
 };
 
 const SENSOR_COLOR = {
@@ -97,7 +127,7 @@ function fmtTimeOnly(ts) {
 function getLatestTimestampFromSensorData(sensorData) {
     let latest = -Infinity;
 
-    for (const part of PARTS) {
+    for (const part of Object.keys(sensorData ?? {})) {
         const block = sensorData?.[part];
         if (!block?.currentTs) continue;
 
@@ -275,7 +305,7 @@ function createEmptyPart(part) {
 
 function createEmptyDataShape() {
     const data = {};
-    PARTS.forEach((part) => {
+    ALL_PARTS.forEach((part) => {
         data[part] = createEmptyPart(part);
     });
     return data;
@@ -365,14 +395,20 @@ export default function DetailPage() {
     const { sensorKey } = useParams();
     const meta = SENSOR_META[sensorKey] ?? SENSOR_META.temp;
     const { Icon } = meta;
+    const parts = SENSOR_PARTS[sensorKey] ?? SENSOR_PARTS.temp;
 
     const [mannequinId, setMannequinId] = useState(1);
-    const [activePart, setActivePart] = useState("back");
+    const [activePart, setActivePart] = useState(() => parts[0] ?? "back");
     const [activeSensorId, setActiveSensorId] = useState(1);
     const [sensorData, setSensorData] = useState(createEmptyDataShape);
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
     const [nowTs, setNowTs] = useState(0);
+
+    useEffect(() => {
+        setActivePart(parts[0] ?? "back");
+        setActiveSensorId(1);
+    }, [sensorKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const el = chartScrollRef.current;
@@ -408,7 +444,7 @@ export default function DetailPage() {
             const seq = ++fetchSeqRef.current;
 
             try {
-                const requests = PARTS.map(async (part) => {
+                const requests = parts.map(async (part) => {
                     const controller = new AbortController();
                     abortControllersRef.current.push(controller);
 
@@ -442,7 +478,7 @@ export default function DetailPage() {
                 setSensorData((prev) => {
                     const next = { ...prev };
 
-                    PARTS.forEach((part) => {
+                    parts.forEach((part) => {
                         const prevPart = prev[part] || createEmptyPart(part);
                         next[part] = {
                             series: { ...prevPart.series },
@@ -665,6 +701,7 @@ export default function DetailPage() {
                                 <MannequinHotspotSVG
                                     className="absolute inset-0 w-full h-full"
                                     activePart={activePart}
+                                    visibleParts={parts}
                                     onClickPart={(part) => {
                                         setActivePart(part);
                                         setActiveSensorId(1);
@@ -694,7 +731,9 @@ export default function DetailPage() {
                                     Graph – {PART_LABEL[activePart]}
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                    Back: 4 sensors • Hands: 2 sensors • Legs: 3 sensors
+                                    {["flex", "strain"].includes(sensorKey)
+                                        ? "Elbows & Knees: 1 sensor each"
+                                        : "Back: 4 sensors • Hands: 2 sensors • Legs: 3 sensors"}
                                 </div>
                             </div>
 
@@ -791,8 +830,8 @@ export default function DetailPage() {
                 </div>
 
                 <div className="neo-surface p-3 sm:p-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                        {PARTS.map((id) => (
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 ${parts.length <= 4 ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
+                        {parts.map((id) => (
                             <div key={id} className="self-stretch">
                                 <LocationPill
                                     label={PART_LABEL[id]}

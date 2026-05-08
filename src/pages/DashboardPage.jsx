@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
-import { Thermometer, Waves, Gauge, ChevronRight } from "lucide-react";
+import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity } from "lucide-react";
 
 const SENSOR_TYPES = [
     {
@@ -10,26 +10,44 @@ const SENSOR_TYPES = [
         unit: "°C",
         Icon: Thermometer,
         desc: "Thermal load monitoring",
-        sensorName: "Temperature Sensor",
+        sensorName: "MCP9808",
         backendType: "temperature",
     },
     {
         key: "press",
         label: "Pressure",
-        unit: "kPa",
+        unit: "N",
         Icon: Gauge,
         desc: "Contact pressure distribution",
-        sensorName: "Pressure Sensor",
+        sensorName: "FSR RP-S40-ST",
         backendType: "pressure",
     },
     {
         key: "vib",
         label: "Vibration",
-        unit: "g",
+        unit: "V",
         Icon: Waves,
         desc: "Impact & vibration intensity",
-        sensorName: "Vibration Sensor",
+        sensorName: "Piezoelectric",
         backendType: "vibration",
+    },
+    {
+        key: "flex",
+        label: "Flex",
+        unit: "Ω",
+        Icon: ArrowLeftRight,
+        desc: "Bend angle resistance (elbow & knee)",
+        sensorName: "Flex Sensor",
+        backendType: "flex",
+    },
+    {
+        key: "strain",
+        label: "Strain",
+        unit: "µε",
+        Icon: Activity,
+        desc: "Structural deformation (elbow & knee)",
+        sensorName: "Strain Gauge",
+        backendType: "strain",
     },
 ];
 
@@ -263,7 +281,7 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 md:py-10 md:h-[400px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 sm:gap-6">
                     {SENSOR_TYPES.map((meta) => (
                         <SensorTypeCard
                             key={meta.key}

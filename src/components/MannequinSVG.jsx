@@ -7,19 +7,28 @@ export default function MannequinHotspotSVG({
     onHoverPart,
     onLeavePart,
     imageHref = "/mannequin-back.png",
+    visibleParts = null,
 }) {
     const [hoverId, setHoverId] = useState(null);
 
     const SENSORS = useMemo(
         () => [
-            { id: "back", x: 50, y: 30 },
-            { id: "left-arm", x: 34, y: 45 },
-            { id: "right-arm", x: 67, y: 45 },
-            { id: "left-leg", x: 43.2, y: 85 },
-            { id: "right-leg", x: 58.2, y: 85 },
+            { id: "back",          x: 50,   y: 30  },
+            { id: "left-arm",      x: 34,   y: 45  },
+            { id: "right-arm",     x: 67,   y: 45  },
+            { id: "left-leg",      x: 43.2, y: 85  },
+            { id: "right-leg",     x: 58.2, y: 85  },
+            { id: "left-elbow",    x: 30,   y: 58  },
+            { id: "right-elbow",   x: 71,   y: 58  },
+            { id: "left-knee",     x: 42,   y: 110 },
+            { id: "right-knee",    x: 59,   y: 110 },
         ],
         []
     );
+
+    const visibleSensors = visibleParts
+        ? SENSORS.filter((s) => visibleParts.includes(s.id))
+        : SENSORS;
 
     const isActive = (id) => activePart === id;
     const isHover = (id) => hoverId === id;
@@ -98,7 +107,7 @@ export default function MannequinHotspotSVG({
                 preserveAspectRatio="xMidYMid meet"
             />
 
-            {SENSORS.map((s) => {
+            {visibleSensors.map((s) => {
                 const active = isActive(s.id);
                 const hover = isHover(s.id);
                 const dimOthers = Boolean(activePart) && !active;
