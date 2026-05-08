@@ -13,7 +13,8 @@ import {
     ReferenceLine,
     Label
 } from "recharts";
-import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity } from "lucide-react";
+import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
+import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 
 const SENSOR_META = {
     temp:   { label: "Temperature", unit: "°C", Icon: Thermometer,    backendType: "temperature", limit: 38,     yRange: [0, 55]     },
@@ -398,6 +399,7 @@ export default function DetailPage() {
     const parts = SENSOR_PARTS[sensorKey] ?? SENSOR_PARTS.temp;
 
     const [mannequinId, setMannequinId] = useState(1);
+    const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
     const [activePart, setActivePart] = useState(() => parts[0] ?? "back");
     const [activeSensorId, setActiveSensorId] = useState(1);
     const [sensorData, setSensorData] = useState(createEmptyDataShape);
@@ -549,13 +551,56 @@ export default function DetailPage() {
         };
 
         fetchAllParts();
-        const interval = setInterval(fetchAllParts, 1000);
 
-        return () => {
-            clearInterval(interval);
-            abortAll();
-        };
+        return () => { abortAll(); };
     }, [sensorKey, meta.backendType, mannequinId]);
+
+    // Append WS live readings into chart data
+    useEffect(() => {
+        if (latestBatch.length === 0) return;
+        const relevant = latestBatch.filter((r) => r.sensorType === meta.backendType);
+        if (relevant.length === 0) return;
+
+        setSensorData((prev) => {
+            const next = { ...prev };
+
+            relevant.forEach((r) => {
+                const partKey =
+                    LOCATION_MAP_BACKEND[r.location] ??
+                    LOCATION_MAP_BACKEND[r.location?.replace(/ /g, '_')] ??
+                    null;
+                if (!partKey || !parts.includes(partKey)) return;
+
+                const sn = r.sensorNumber;
+                const ts = new Date(r.timestamp).getTime();
+                const v = Number(r.value);
+                if (!Number.isFinite(ts) || !Number.isFinite(v)) return;
+
+                const prevPart = prev[partKey] || createEmptyPart(partKey);
+                if (!next[partKey] || next[partKey] === prev[partKey]) {
+                    next[partKey] = {
+                        series: { ...prevPart.series },
+                        current: { ...prevPart.current },
+                        currentTs: { ...prevPart.currentTs },
+                    };
+                }
+
+                next[partKey].series[sn] = mergePointIntoSeries(
+                    next[partKey].series[sn] ?? [],
+                    { ts, v },
+                    MAX_STORED_POINTS,
+                );
+
+                const prevTs = next[partKey].currentTs[sn] ?? -Infinity;
+                if (ts >= prevTs) {
+                    next[partKey].currentTs[sn] = ts;
+                    next[partKey].current[sn] = v;
+                }
+            });
+
+            return next;
+        });
+    }, [latestBatch, meta.backendType, parts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const sensorCount = PART_SENSOR_COUNT[activePart] ?? 2;
     const activeBlock = sensorData[activePart] || createEmptyPart(activePart);
@@ -669,6 +714,19 @@ export default function DetailPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                        <div className="flex items-center gap-1 px-2 py-1 neo-inset rounded-lg text-xs">
+                            {isConnected ? (
+                                <>
+                                    <Wifi size={13} className="text-emerald-600" />
+                                    <span className="text-emerald-600 font-medium">Live</span>
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff size={13} className="text-orange-500" />
+                                    <span className="text-orange-500 font-medium">Connecting…</span>
+                                </>
+                            )}
+                        </div>
                         <select
                             value={mannequinId}
                             onChange={(e) => {

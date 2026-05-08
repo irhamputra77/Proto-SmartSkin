@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
-import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity } from "lucide-react";
+import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
+import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 
 const SENSOR_TYPES = [
     {
@@ -178,59 +179,52 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [mannequinId, setMannequinId] = useState(1);
 
+    const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
+
+    // Update summary on each WS batch
+    useEffect(() => {
+        if (latestBatch.length === 0) return;
+        setSummary((prev) => {
+            const next = { ...prev };
+            SENSOR_TYPES.forEach((sensor) => {
+                const match = latestBatch
+                    .filter((r) => r.sensorType === sensor.backendType)
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                if (match) next[sensor.key] = buildRealtimeSummary(match);
+            });
+            return next;
+        });
+        setLoading(false);
+    }, [latestBatch]);
+
+    // Initial HTTP fetch — fallback until first WS batch arrives
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
         let isCancelled = false;
-        let isFetching = false;
 
-        const fetchData = async () => {
-            if (isFetching) return;
-            isFetching = true;
-
+        const fetchInitial = async () => {
             try {
                 const url = new URL(`${API_BASE}/sensor-reading/latest`);
                 url.searchParams.set("mannequin_id", String(mannequinId));
                 const res = await fetch(url.toString(), { cache: "no-store" });
-
-                if (!res.ok) {
-                    throw new Error("Failed to fetch latest readings");
-                }
-
+                if (!res.ok) throw new Error("Failed to fetch latest readings");
                 const data = await res.json();
-
                 if (isCancelled) return;
-
-                // Map backend data to frontend summary
                 const nextSummary = SENSOR_TYPES.reduce((acc, sensor) => {
-                    const sensorData = data.find(
-                        (item) => item.sensorType === sensor.backendType
-                    );
+                    const sensorData = data.find((item) => item.sensorType === sensor.backendType);
                     acc[sensor.key] = buildRealtimeSummary(sensorData || { value: null, timestamp: null });
                     return acc;
                 }, {});
-
                 setSummary(nextSummary);
             } catch (err) {
-                console.error("Error fetching dashboard data:", err);
-
-                if (!isCancelled) {
-                    setSummary(EMPTY_SUMMARY);
-                }
+                console.error("Error fetching initial dashboard data:", err);
             } finally {
-                if (!isCancelled) {
-                    setLoading(false);
-                }
-                isFetching = false;
+                if (!isCancelled) setLoading(false);
             }
         };
 
-        fetchData();
-        const interval = setInterval(fetchData, 3000);
-
-        return () => {
-            isCancelled = true;
-            clearInterval(interval);
-        };
+        fetchInitial();
+        return () => { isCancelled = true; };
     }, [mannequinId]);
 
     return (
@@ -239,11 +233,26 @@ export default function DashboardPage() {
                 <div className="neo-surface p-4 sm:p-6 rounded-2xl">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="min-w-0">
-                            <div className="text-2xl sm:text-3xl font-semibold text-slate-900 truncate">
-                                Smart Skin Dashboard
+                            <div className="flex items-center gap-3">
+                                <div className="text-2xl sm:text-3xl font-semibold text-slate-900 truncate">
+                                    Smart Skin Dashboard
+                                </div>
+                                <div className="flex items-center gap-1 px-2 py-1 neo-inset rounded-lg text-xs shrink-0">
+                                    {isConnected ? (
+                                        <>
+                                            <Wifi size={13} className="text-emerald-600" />
+                                            <span className="text-emerald-600 font-medium">Live</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <WifiOff size={13} className="text-orange-500" />
+                                            <span className="text-orange-500 font-medium">Connecting…</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                             <div className="mt-1 text-sm text-slate-500 max-w-3xl">
-                                Select <b>sensor type</b> to view trends and details per body location (mannequin).
+                                Real-time via WebSocket. Select <b>sensor type</b> to view details per body location.
                             </div>
                         </div>
 
