@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
 import MannequinHotspotSVG from "../components/MannequinSVG";
@@ -398,7 +398,13 @@ export default function DetailPage() {
     const { Icon } = meta;
     const parts = SENSOR_PARTS[sensorKey] ?? SENSOR_PARTS.temp;
 
-    const [mannequinId, setMannequinId] = useState(1);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const mannequinId = Number(searchParams.get("mannequin")) || 1;
+    const setMannequinId = (id) => {
+        const next = new URLSearchParams(searchParams);
+        next.set("mannequin", String(id));
+        setSearchParams(next, { replace: true });
+    };
     const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
     const [activePart, setActivePart] = useState(() => parts[0] ?? "back");
     const [activeSensorId, setActiveSensorId] = useState(1);
@@ -697,7 +703,7 @@ export default function DetailPage() {
                 <div className="neo-surface p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
                         <div className="text-sm text-slate-500 flex items-center gap-2">
-                            <Link to="/dashboard" className="inline-flex items-center gap-2 hover:underline">
+                            <Link to={`/dashboard?mannequin=${mannequinId}`} className="inline-flex items-center gap-2 hover:underline">
                                 <ChevronLeft size={16} />
                                 Dashboard
                             </Link>

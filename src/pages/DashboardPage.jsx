@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
@@ -175,9 +175,15 @@ function SensorTypeCard({ meta, summary, loading, onOpen }) {
 
 export default function DashboardPage() {
     const nav = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [summary, setSummary] = useState(EMPTY_SUMMARY);
     const [loading, setLoading] = useState(true);
-    const [mannequinId, setMannequinId] = useState(1);
+    const mannequinId = Number(searchParams.get("mannequin")) || 1;
+    const setMannequinId = (id) => {
+        const next = new URLSearchParams(searchParams);
+        next.set("mannequin", String(id));
+        setSearchParams(next, { replace: true });
+    };
 
     const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
 
@@ -297,7 +303,7 @@ export default function DashboardPage() {
                             meta={meta}
                             summary={summary[meta.key]}
                             loading={loading}
-                            onOpen={() => nav(`/sensor/${meta.key}`)}
+                            onOpen={() => nav(`/sensor/${meta.key}?mannequin=${mannequinId}`)}
                         />
                     ))}
                 </div>
