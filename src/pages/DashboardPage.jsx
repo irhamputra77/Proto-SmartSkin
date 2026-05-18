@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
 import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
+import { useMannequinHealth } from "../hooks/useMannequinHealth";
 
 const SENSOR_TYPES = [
     {
@@ -76,7 +77,7 @@ function timeAgo(timestamp) {
     const then = new Date(timestamp);
     const diffMs = now - then;
     const diffSec = Math.floor(diffMs / 1000);
-    
+
     if (diffSec < 5) return "Just now";
     if (diffSec < 60) return `${diffSec}s ago`;
     const diffMin = Math.floor(diffSec / 60);
@@ -84,6 +85,23 @@ function timeAgo(timestamp) {
     const diffHour = Math.floor(diffMin / 60);
     if (diffHour < 24) return `${diffHour}h ago`;
     return then.toLocaleDateString();
+}
+
+function formatSecondsAgo(s) {
+    if (s == null) return "no data";
+    if (s < 5) return "just now";
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return `${h}h ago`;
+}
+
+function healthToneClass(status) {
+    if (status === "online")  return "text-emerald-600";
+    if (status === "stale")   return "text-orange-500";
+    if (status === "offline") return "text-red-500";
+    return "text-slate-500";
 }
 
 function buildRealtimeSummary(latestData) {
@@ -185,7 +203,8 @@ export default function DashboardPage() {
         setSearchParams(next, { replace: true });
     };
 
-    const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
+    const { isConnected, latestBatch, connectionEpoch } = useSensorWebSocket(mannequinId);
+    const health = useMannequinHealth(mannequinId);
 
     // Update summary on each WS batch
     useEffect(() => {
@@ -231,7 +250,9 @@ export default function DashboardPage() {
 
         fetchInitial();
         return () => { isCancelled = true; };
-    }, [mannequinId]);
+        // connectionEpoch in deps → re-fetch fresh data each time WS (re)connects,
+        // so values aren't stuck-stale after a network blip.
+    }, [mannequinId, connectionEpoch]);
 
     return (
         <div className="min-h-[100dvh] bg-[#e9eef3] p-3 sm:p-6">
@@ -255,6 +276,15 @@ export default function DashboardPage() {
                                             <span className="text-orange-500 font-medium">Connecting…</span>
                                         </>
                                     )}
+                                </div>
+                                <div
+                                    className="px-2 py-1 neo-inset rounded-lg text-xs shrink-0"
+                                    title="Backend-reported time since last LoRa packet. Source of truth, not affected by client clock or WebSocket connection."
+                                >
+                                    <span className="text-slate-500">Backend: </span>
+                                    <span className={`font-medium ${healthToneClass(health.status)}`}>
+                                        {formatSecondsAgo(health.secondsAgo)}
+                                    </span>
                                 </div>
                             </div>
                             <div className="mt-1 text-sm text-slate-500 max-w-3xl">

@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
+import { useMannequinHealth } from "../hooks/useMannequinHealth";
 
 const SENSOR_META = {
     temp:   { label: "Temperature", unit: "°C", Icon: Thermometer,    backendType: "temperature", limit: 38,     yRange: [0, 55]     },
@@ -123,24 +124,6 @@ function fmtTimeOnly(ts) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
-}
-
-function getLatestTimestampFromSensorData(sensorData) {
-    let latest = -Infinity;
-
-    for (const part of Object.keys(sensorData ?? {})) {
-        const block = sensorData?.[part];
-        if (!block?.currentTs) continue;
-
-        for (const value of Object.values(block.currentTs)) {
-            const ts = Number(value);
-            if (Number.isFinite(ts) && ts > latest) {
-                latest = ts;
-            }
-        }
-    }
-
-    return Number.isFinite(latest) ? latest : null;
 }
 
 const SimpleTimeTick = ({ x, y, payload }) => {
@@ -405,13 +388,13 @@ export default function DetailPage() {
         next.set("mannequin", String(id));
         setSearchParams(next, { replace: true });
     };
-    const { isConnected, latestBatch } = useSensorWebSocket(mannequinId);
+    const { isConnected, latestBatch, connectionEpoch } = useSensorWebSocket(mannequinId);
+    const health = useMannequinHealth(mannequinId);
     const [activePart, setActivePart] = useState(() => parts[0] ?? "back");
     const [activeSensorId, setActiveSensorId] = useState(1);
     const [sensorData, setSensorData] = useState(createEmptyDataShape);
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
-    const [nowTs, setNowTs] = useState(0);
 
     useEffect(() => {
         setActivePart(parts[0] ?? "back");
@@ -428,14 +411,6 @@ export default function DetailPage() {
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
-
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setNowTs(Date.now());
-        }, 1000);
-
-        return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
@@ -559,7 +534,9 @@ export default function DetailPage() {
         fetchAllParts();
 
         return () => { abortAll(); };
-    }, [sensorKey, meta.backendType, mannequinId]);
+        // connectionEpoch in deps → re-fetch fresh historical data each time WS
+        // (re)connects, so chart catches up after a network blip.
+    }, [sensorKey, meta.backendType, mannequinId, connectionEpoch]);
 
     // Append WS live readings into chart data
     useEffect(() => {
@@ -614,27 +591,18 @@ export default function DetailPage() {
     const safeActiveSensorId =
         activeSensorId >= 1 && activeSensorId <= sensorCount ? activeSensorId : 1;
 
-    const latestActiveTs = useMemo(() => {
-        return getLatestTimestampFromSensorData(sensorData);
-    }, [sensorData]);
-
-    const msSinceLastActive = latestActiveTs ? nowTs - latestActiveTs : Infinity;
+    // Drive liveness from backend /lora/health (server-truth):
+    //   - matches BE thresholds (online ≤60s, stale ≤300s, offline >300s)
+    //   - immune to client clock skew
+    //   - survives WS disconnects (it's HTTP-polled)
+    const latestActiveTs = health.lastSeen ? new Date(health.lastSeen).getTime() : null;
 
     const liveStatus = useMemo(() => {
-        if (!latestActiveTs) {
-            return { label: "NO DATA", tone: "warn" };
-        }
-
-        if (msSinceLastActive <= 5000) {
-            return { label: "ACTIVE", tone: "ok" };
-        }
-
-        if (msSinceLastActive <= 15000) {
-            return { label: "DELAY", tone: "warn" };
-        }
-
-        return { label: "OFFLINE", tone: "danger" };
-    }, [latestActiveTs, msSinceLastActive]);
+        if (health.status === "online")  return { label: "ACTIVE",  tone: "ok"     };
+        if (health.status === "stale")   return { label: "DELAY",   tone: "warn"   };
+        if (health.status === "offline") return { label: "OFFLINE", tone: "danger" };
+        return { label: "NO DATA", tone: "warn" };
+    }, [health.status]);
 
     const chartSeries = (activeBlock.series?.[safeActiveSensorId] || []).slice(-DISPLAY_POINT_COUNT);
     const currentValue = activeBlock.current?.[safeActiveSensorId] ?? 0;

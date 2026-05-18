@@ -7,6 +7,9 @@ export function useSensorWebSocket(mannequinId) {
     const socketRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
     const [latestBatch, setLatestBatch] = useState([]);
+    // Increments each time the socket (re)connects. Consumers can add this to
+    // an effect's deps to re-fetch fresh data after a disconnect → reconnect.
+    const [connectionEpoch, setConnectionEpoch] = useState(0);
 
     useEffect(() => {
         const socket = io(`${WS_URL}/sensor`, {
@@ -18,7 +21,10 @@ export function useSensorWebSocket(mannequinId) {
 
         socketRef.current = socket;
 
-        socket.on('connect', () => setIsConnected(true));
+        socket.on('connect', () => {
+            setIsConnected(true);
+            setConnectionEpoch((n) => n + 1);
+        });
         socket.on('disconnect', () => setIsConnected(false));
 
         socket.on('sensor-batch-update', (readings) => {
@@ -32,5 +38,5 @@ export function useSensorWebSocket(mannequinId) {
         };
     }, [mannequinId]);
 
-    return { isConnected, latestBatch };
+    return { isConnected, latestBatch, connectionEpoch };
 }
