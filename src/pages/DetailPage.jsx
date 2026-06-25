@@ -13,7 +13,7 @@ import {
     ReferenceLine,
     Label
 } from "recharts";
-import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
+import { ChevronLeft, Thermometer, Waves, Gauge, MapPin, ArrowLeftRight, Activity, Wifi, WifiOff, ArrowRight } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 import { useMannequinHealth } from "../hooks/useMannequinHealth";
 
@@ -101,6 +101,7 @@ const SENSOR_COLOR = {
 const DISPLAY_POINT_COUNT = 7;   // jumlah titik yang ditampilkan pada chart
 const MAX_STORED_POINTS = 600;   // jumlah maksimal histori yang disimpan di frontend per sensor
 const FETCH_LIMIT_PER_PART = 21; // jumlah data per request dari backend
+const LOG_LIMIT = 10;            // jumlah data terakhir di log preview
 
 function fmt(v) {
     const n = Number(v);
@@ -115,6 +116,20 @@ function fmtHHmmss(ts) {
     const mm = String(d.getMinutes()).padStart(2, "0");
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
+}
+
+function fmtFullTs(ts) {
+    const d = new Date(ts);
+    if (!Number.isFinite(d.getTime())) return "-";
+    return d.toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    });
 }
 
 function fmtTimeOnly(ts) {
@@ -396,6 +411,10 @@ export default function DetailPage() {
     const [loading, setLoading] = useState(true);
     const [chartContainerW, setChartContainerW] = useState(0);
 
+    // Per-sensor log preview (last 10 readings). Full log + export lives on /logs.
+    const [logRows, setLogRows] = useState([]);
+    const [logLoading, setLogLoading] = useState(true);
+
     useEffect(() => {
         setActivePart(parts[0] ?? "back");
         setActiveSensorId(1);
@@ -665,6 +684,46 @@ export default function DetailPage() {
         return yDomain;
     }, [meta, yDomain]);
 
+    // ---- Per-sensor log preview: last 10 backend-truth readings for the active sensor ----
+    const activeBackendLocation = PART_TO_BACKEND_LOCATION[activePart];
+
+    useEffect(() => {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
+        const controller = new AbortController();
+
+        const fetchLogPreview = async () => {
+            setLogLoading(true);
+            try {
+                const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                url.searchParams.set("sensorType", meta.backendType);
+                url.searchParams.set("location", activeBackendLocation);
+                url.searchParams.set("sensorNumber", String(safeActiveSensorId));
+                url.searchParams.set("mannequin_id", String(mannequinId));
+                url.searchParams.set("page", "1");
+                url.searchParams.set("limit", String(LOG_LIMIT));
+
+                const res = await fetch(url.toString(), {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error("Failed to fetch sensor log");
+
+                const json = await res.json();
+                setLogRows(Array.isArray(json?.data) ? json.data : []);
+            } catch (err) {
+                if (err?.name === "AbortError") return;
+                console.error("Error fetching sensor log preview:", err);
+                setLogRows([]);
+            } finally {
+                setLogLoading(false);
+            }
+        };
+
+        fetchLogPreview();
+        return () => controller.abort();
+        // connectionEpoch → refresh preview after a WS (re)connect so it catches new rows
+    }, [meta.backendType, activeBackendLocation, safeActiveSensorId, mannequinId, connectionEpoch]);
+
     return (
         <div className="min-h-dvh bg-[#e9eef3] p-3 sm:p-6 overflow-x-hidden">
             <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4 sm:gap-6 min-h-dvh">
@@ -879,6 +938,88 @@ export default function DetailPage() {
                                 />
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                <div className="neo-surface p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+                        <div className="min-w-0">
+                            <div className="font-semibold text-slate-800">
+                                Log Preview – {PART_LABEL[activePart]} · Sensor {safeActiveSensorId}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">
+                                {meta.label} ({meta.unit}) • 10 data terakhir (server-truth)
+                            </div>
+                        </div>
+
+                        <Link
+                            to={`/logs?mannequin=${mannequinId}`}
+                            className="neo-pill px-3 py-1.5 sm:px-4 sm:py-2 text-sm text-slate-700 inline-flex items-center gap-2 active:scale-[0.99] hover:scale-[1.01] transition"
+                        >
+                            Lihat semua log
+                            <ArrowRight size={15} className="text-emerald-600" />
+                        </Link>
+                    </div>
+
+                    <div className="neo-inset rounded-xl overflow-hidden">
+                        <div className="overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-[#e9eef3] text-slate-600">
+                                    <tr>
+                                        <th className="text-left font-semibold px-4 py-2.5 w-16">No</th>
+                                        <th className="text-left font-semibold px-4 py-2.5">Timestamp</th>
+                                        <th className="text-right font-semibold px-4 py-2.5">Value ({meta.unit})</th>
+                                        <th className="text-center font-semibold px-4 py-2.5 w-28">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {logLoading ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                                                Loading…
+                                            </td>
+                                        </tr>
+                                    ) : logRows.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                                                Belum ada data untuk sensor ini.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        logRows.map((r, i) => {
+                                            const val = r?.value != null ? Number(r.value) : null;
+                                            const isOver =
+                                                Number.isFinite(val) &&
+                                                Number.isFinite(threshold) &&
+                                                val > threshold;
+                                            return (
+                                                <tr key={r?.id ?? i} className="border-t border-white/50">
+                                                    <td className="px-4 py-2.5 text-slate-500 tabular-nums">
+                                                        {i + 1}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-slate-700 tabular-nums">
+                                                        {fmtFullTs(r?.timestamp)}
+                                                    </td>
+                                                    <td
+                                                        className={[
+                                                            "px-4 py-2.5 text-right font-semibold tabular-nums",
+                                                            isOver ? "text-red-600" : "text-slate-900",
+                                                        ].join(" ")}
+                                                    >
+                                                        {val != null ? fmt(val) : "-"}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-center">
+                                                        <StatusBadge tone={isOver ? "danger" : "ok"}>
+                                                            {isOver ? "OVER" : "OK"}
+                                                        </StatusBadge>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

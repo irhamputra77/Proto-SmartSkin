@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
-import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff } from "lucide-react";
+import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff, ScrollText } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 import { useMannequinHealth } from "../hooks/useMannequinHealth";
 
@@ -305,6 +305,14 @@ export default function DashboardPage() {
                                 <option value={1}>Mannequin 1</option>
                                 <option value={2}>Mannequin 2</option>
                             </select>
+                            <button
+                                type="button"
+                                onClick={() => nav(`/logs?mannequin=${mannequinId}`)}
+                                className="neo-pill px-3 py-2 rounded-xl text-sm font-medium text-slate-700 inline-flex items-center gap-2 active:scale-[0.99] hover:scale-[1.01] transition"
+                            >
+                                <ScrollText size={15} className="text-emerald-600" />
+                                Logs
+                            </button>
                             <div className="neo-inset p-3 rounded-2xl">
                                 <img
                                     src="/Logo.png"
