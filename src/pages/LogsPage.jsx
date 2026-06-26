@@ -3,8 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
 import { ChevronLeft, CalendarDays, Download, ScrollText } from "lucide-react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
+import { apiFetch, apiUrl } from "../lib/api";
 
 const PREVIEW_LIMIT = 15;
 
@@ -98,7 +97,7 @@ export default function LogsPage() {
         const fetchPreview = async () => {
             setLoading(true);
             try {
-                const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                const url = new URL(apiUrl("/sensor-reading/paginated"));
                 url.searchParams.set("mannequin_id", String(mannequinId));
                 url.searchParams.set("startDate", `${date}T00:00:00.000`);
                 url.searchParams.set("endDate", `${date}T23:59:59.999`);
@@ -107,7 +106,7 @@ export default function LogsPage() {
                 url.searchParams.set("page", String(page));
                 url.searchParams.set("limit", String(PREVIEW_LIMIT));
 
-                const res = await fetch(url.toString(), {
+                const res = await apiFetch(url, {
                     cache: "no-store",
                     signal: controller.signal,
                 });
@@ -132,22 +131,39 @@ export default function LogsPage() {
         return () => controller.abort();
     }, [date, sensorType, location, mannequinId, page]);
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setExporting(true);
         try {
-            const url = new URL(`${API_BASE}/sensor-reading/export`);
+            const url = new URL(apiUrl("/sensor-reading/export"));
             url.searchParams.set("date", date);
             url.searchParams.set("mannequin_id", String(mannequinId));
             if (sensorType !== "all") url.searchParams.set("sensorType", sensorType);
             if (location !== "all") url.searchParams.set("location", location);
 
-            // Server responds with Content-Disposition: attachment → browser downloads.
+            // Fetch with the Bearer token (a plain <a href> can't send headers),
+            // then trigger the download from the blob.
+            const res = await apiFetch(url, { cache: "no-store" });
+            if (!res.ok) throw new Error("Export failed");
+
+            const blob = await res.blob();
+
+            // Prefer the server filename (Content-Disposition); fall back to a local one.
+            const cd = res.headers.get("content-disposition") || "";
+            const match = cd.match(/filename="?([^"]+)"?/i);
+            const filename = match
+                ? match[1]
+                : `log_${date}_m${mannequinId}_${sensorType}_${location}.csv`;
+
+            const objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.href = url.toString();
-            link.rel = "noopener";
+            link.href = objectUrl;
+            link.download = filename;
             document.body.appendChild(link);
             link.click();
             link.remove();
+            URL.revokeObjectURL(objectUrl);
+        } catch (err) {
+            console.error("Export failed:", err);
         } finally {
             setExporting(false);
         }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { apiFetch, apiUrl } from "../lib/api";
 import NeoButton from "../components/NeoButton";
 import StatusBadge from "../components/StatusBadge";
 import MannequinHotspotSVG from "../components/MannequinSVG";
@@ -433,8 +434,6 @@ export default function DetailPage() {
     }, []);
 
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
-
         const abortAll = () => {
             abortControllersRef.current.forEach((c) => c.abort());
             abortControllersRef.current = [];
@@ -450,14 +449,14 @@ export default function DetailPage() {
                     const controller = new AbortController();
                     abortControllersRef.current.push(controller);
 
-                    const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                    const url = new URL(apiUrl("/sensor-reading/paginated"));
                     url.searchParams.set("sensorType", meta.backendType);
                     url.searchParams.set("location", PART_TO_BACKEND_LOCATION[part]);
                     url.searchParams.set("page", "1");
                     url.searchParams.set("limit", String(FETCH_LIMIT_PER_PART));
                     url.searchParams.set("mannequin_id", String(mannequinId));
 
-                    const res = await fetch(url.toString(), {
+                    const res = await apiFetch(url, {
                         cache: "no-store",
                         signal: controller.signal,
                     });
@@ -688,13 +687,12 @@ export default function DetailPage() {
     const activeBackendLocation = PART_TO_BACKEND_LOCATION[activePart];
 
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
         const controller = new AbortController();
 
         const fetchLogPreview = async () => {
             setLogLoading(true);
             try {
-                const url = new URL(`${API_BASE}/sensor-reading/paginated`);
+                const url = new URL(apiUrl("/sensor-reading/paginated"));
                 url.searchParams.set("sensorType", meta.backendType);
                 url.searchParams.set("location", activeBackendLocation);
                 url.searchParams.set("sensorNumber", String(safeActiveSensorId));
@@ -702,7 +700,7 @@ export default function DetailPage() {
                 url.searchParams.set("page", "1");
                 url.searchParams.set("limit", String(LOG_LIMIT));
 
-                const res = await fetch(url.toString(), {
+                const res = await apiFetch(url, {
                     cache: "no-store",
                     signal: controller.signal,
                 });

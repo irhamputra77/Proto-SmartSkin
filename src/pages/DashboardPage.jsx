@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge";
-import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff, ScrollText } from "lucide-react";
+import { Thermometer, Waves, Gauge, ChevronRight, ArrowLeftRight, Activity, Wifi, WifiOff, ScrollText, LogOut } from "lucide-react";
 import { useSensorWebSocket } from "../hooks/useSensorWebSocket";
 import { useMannequinHealth } from "../hooks/useMannequinHealth";
+import { apiFetch, apiUrl } from "../lib/api";
+import { getUser, clearSession } from "../lib/auth";
 
 const SENSOR_TYPES = [
     {
@@ -224,14 +226,13 @@ export default function DashboardPage() {
 
     // Initial HTTP fetch — fallback until first WS batch arrives
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://api-ss.stas-rg.com";
         let isCancelled = false;
 
         const fetchInitial = async () => {
             try {
-                const url = new URL(`${API_BASE}/sensor-reading/latest`);
+                const url = new URL(apiUrl("/sensor-reading/latest"));
                 url.searchParams.set("mannequin_id", String(mannequinId));
-                const res = await fetch(url.toString(), { cache: "no-store" });
+                const res = await apiFetch(url, { cache: "no-store" });
                 if (!res.ok) throw new Error("Failed to fetch latest readings");
                 const data = await res.json();
                 if (isCancelled) return;
@@ -312,6 +313,20 @@ export default function DashboardPage() {
                             >
                                 <ScrollText size={15} className="text-emerald-600" />
                                 Logs
+                            </button>
+                            {getUser() && (
+                                <span className="neo-inset px-3 py-2 rounded-xl text-xs font-medium text-slate-600 hidden sm:inline">
+                                    {getUser().displayName || getUser().username}
+                                </span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => { clearSession(); nav("/login", { replace: true }); }}
+                                title="Keluar"
+                                className="neo-pill px-3 py-2 rounded-xl text-sm font-medium text-slate-700 inline-flex items-center gap-2 active:scale-[0.99] hover:scale-[1.01] transition"
+                            >
+                                <LogOut size={15} className="text-rose-500" />
+                                <span className="hidden sm:inline">Logout</span>
                             </button>
                             <div className="neo-inset p-3 rounded-2xl">
                                 <img

@@ -32,13 +32,40 @@ Backend must be running at the URL defined in `VITE_API_BASE_URL` (default: `htt
 
 ## Environment Variables
 
-Create `.env.local` in the project root:
+The app reads `VITE_API_BASE_URL` (falls back to `https://api-ss.stas-rg.com` if unset). You don't need to edit code or copy folders to switch backends — Vite picks the right `.env` file per mode:
 
-```env
-VITE_API_BASE_URL=http://localhost:3000
-```
+| File | Used by | `VITE_API_BASE_URL` |
+|------|---------|---------------------|
+| `.env.development` | `npm run dev` | `http://localhost:3000` |
+| `.env.production` | `npm run build` / `npm run dev:deploy` | `https://api-ss.stas-rg.com` |
+| `.env.example` | docs only (not loaded) | reference template |
+| `.env.local` | any mode (overrides all, git-ignored) | your temporary override |
 
-If not set, the app defaults to `https://api-ss.stas-rg.com`.
+### Switching backend (no code edits)
+
+| Command | Backend | Use for |
+|---------|---------|---------|
+| `npm run dev` | Local (`localhost:3000`) | Daily dev against local backend |
+| `npm run dev:deploy` | Deploy | Check local FE against production backend |
+| `npm run build` | Deploy | Production build (default) |
+| `npm run build:local` | Local | Build pointing at local backend |
+
+For a one-off override, create `.env.local` (overrides everything, never committed).
+
+---
+
+## Authentication
+
+Since the backend added a **JWT gate** (API v7.0), the app is login-protected.
+
+- **`/login`** — username + password form (`src/pages/LoginPage.jsx`). On success it stores the token + user in `localStorage` (`smartskin_token` / `smartskin_user`).
+- **`RequireAuth`** (`src/components/RequireAuth.jsx`) wraps `/dashboard`, `/logs`, `/sensor/:sensorKey`. No session → redirect to `/login` (remembers where you were headed).
+- **`src/lib/api.js`** — `apiFetch()` attaches `Authorization: Bearer <token>` to every data request and, on `401`, clears the session and bounces to `/login`. `apiUrl()` centralizes the API base URL.
+- **`src/lib/auth.js`** — token/user helpers (`getToken`, `setSession`, `getUser`, `clearSession`, `isLoggedIn`).
+- **Logout** button + logged-in user label live in the Dashboard header.
+- CSV export (Logs page) downloads via `apiFetch` → `blob` (a plain `<a href>` can't carry the auth header).
+
+> Accounts: 2 seeded admins (`stas-rg`, `pindad`) — created on the backend via `npm run seed:admin`. Landing page `/` stays public.
 
 ---
 
@@ -119,6 +146,7 @@ GET /sensor-reading/paginated?sensorType={type}&location={loc}&page=1&limit=21&m
 - Tabs at the bottom of the chart → switch between sensor point numbers
 - MannequinSVG shows only hotspots relevant to the active sensor type
 - Live status badge: **ACTIVE** (≤5s), **DELAY** (≤15s), **OFFLINE** (>15s), **NO DATA**
+- **Log Preview** panel below the location grid: last 10 readings (`No · Timestamp · Value · Status`) for the active sensor, fetched from `/sensor-reading/paginated?...&sensorNumber={id}&limit=10` (server-truth from DB, not the WebSocket stream). Includes a **"Lihat semua log →"** link to `/logs`.
 
 **State:**
 | Variable | Type | Description |
@@ -129,6 +157,23 @@ GET /sensor-reading/paginated?sensorType={type}&location={loc}&page=1&limit=21&m
 | `activeSensorId` | number | Focused sensor point number |
 | `sensorData` | object | Time-series data per part and sensor point |
 | `loading` | boolean | True until first fetch completes |
+
+---
+
+### `/logs` — Logs Page (`src/pages/LogsPage.jsx`)
+
+Browse and export sensor readings for a chosen day. Reached via the **"Logs"** button in the Dashboard header (and the "Lihat semua log →" link on Detail).
+
+**Filters:**
+- Date picker (defaults to today, `max=today`)
+- Sensor type — `All` + the 5 types
+- Location — `All` + the 9 locations
+- Mannequin selector (1 or 2)
+
+**Behavior:**
+- **Preview table** is paginated, fetched from `GET /sensor-reading/paginated` (the chosen date is sent as `startDate`/`endDate`)
+- **Export CSV** button triggers a browser download from `GET /sensor-reading/export?date=...` via an anchor — the server sets the filename through `Content-Disposition`, and the CSV carries a UTF-8 BOM so Excel renders `°C`/`µε`/`Ω` correctly
+- Export returns the **whole day** (no pagination cap), ordered chronologically, with an `OK`/`OVER` status column per reading
 
 ---
 
@@ -171,10 +216,12 @@ Neumorphic-styled button. Used for the "Last active" timestamp display on Detail
 ## Routing (`src/App.jsx`)
 
 ```
-/                   → LandingPage
-/dashboard          → DashboardPage
-/dashboard/:sensor  → DashboardPage (param unused — reserved)
-/sensor/:sensorKey  → DetailPage  (sensorKey: temp | press | vib | flex | strain)
+/                   → LandingPage                       (public)
+/login              → LoginPage                         (public)
+/dashboard          → DashboardPage   [RequireAuth]
+/dashboard/:sensor  → DashboardPage   [RequireAuth]     (param unused — reserved)
+/logs               → LogsPage        [RequireAuth]
+/sensor/:sensorKey  → DetailPage      [RequireAuth]     (sensorKey: temp | press | vib | flex | strain)
 ```
 
 ---
@@ -211,6 +258,18 @@ DetailPage → recharts line chart
 
 ## Changelog
 
+### v5.0 — Login Gate (2026-06-26)
+- Added **Login page** (`/login`) + `RequireAuth` guard on Dashboard/Logs/Detail
+- New `src/lib/auth.js` (token storage) + `src/lib/api.js` (`apiFetch` with Bearer token & 401 redirect, `apiUrl`)
+- All data fetches routed through `apiFetch`; CSV export switched to fetch+blob download
+- Logout button + logged-in user label in Dashboard header
+
+### v4.0 — Sensor Logs + Backend Switching (2026-06-25)
+- Added **Logs page** (`/logs`) — pick a date + filters, preview the table, and **Export CSV** for the whole day via `GET /sensor-reading/export`
+- Added **Log Preview** panel on the Detail page — last 10 readings for the active sensor (server-truth from DB), with a link to `/logs`
+- Added **"Logs"** button in the Dashboard header
+- Backend switching without code edits: `.env.development` / `.env.production` files + `dev:deploy` and `build:local` npm scripts (see Environment Variables)
+
 ### v3.0 — Hardware Spec v2: New Sensors + Locations (May 2026)
 - Updated pressure unit `kPa` → `N`, vibration unit `g` → `V` across Dashboard and Detail pages
 - Added **Flex** sensor card (Ω) and **Strain** sensor card (µε) to DashboardPage
@@ -236,4 +295,4 @@ DetailPage → recharts line chart
 
 ---
 
-**Last Updated:** May 8, 2026
+**Last Updated:** June 26, 2026
